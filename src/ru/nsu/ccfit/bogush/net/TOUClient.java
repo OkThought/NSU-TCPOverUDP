@@ -8,8 +8,6 @@ import java.net.InetAddress;
  * ToU - TCP over UDP
  */
 class TOUClient extends TOUAbstractImpl {
-
-
     TOUClient(InetAddress address, int port) throws IOException, InterruptedException {
         DatagramSocket socket = new DatagramSocket(port, address);
         TOUSender sender = new TOUSender(socket, QUEUE_CAPACITY);

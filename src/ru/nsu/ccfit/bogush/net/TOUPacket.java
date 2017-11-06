@@ -13,15 +13,15 @@ class TOUPacket {
         this.sequenceNumber = sequenceNumber;
     }
 
-    public TCPPacket getTcpPacket() {
+    TCPPacket getTcpPacket() {
         return tcpPacket;
     }
 
-    public short getSequenceNumber() {
+    short getSequenceNumber() {
         return sequenceNumber;
     }
 
-    public InetAddress getAddress() {
+    InetAddress getAddress() {
         return address;
     }
 
