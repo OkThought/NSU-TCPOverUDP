@@ -18,7 +18,7 @@ class TOUClient extends TOUAbstractImpl {
     private byte[] bytesToWrite;
     private int writingPosition = -1;
 
-    TOUClient(InetAddress address, int port) throws IOException, InterruptedException {
+    TOUClient (InetAddress address, int port) throws IOException, InterruptedException {
         DatagramSocket socket = new DatagramSocket(port, address);
         sender = new TOUSender(socket, QUEUE_CAPACITY);
         receiver = new TOUReceiver(socket, PACKET_SIZE);
@@ -27,7 +27,7 @@ class TOUClient extends TOUAbstractImpl {
     }
 
     @Override
-    int readByte() throws InterruptedException {
+    int readByte () throws InterruptedException {
         if (readingPosition < 0 || bytesToRead == null || readingPosition >= bytesToRead.length) {
             TOUPacket p;
             p = receiver.takeSubsequentOrdinaryPacket();
@@ -38,11 +38,11 @@ class TOUClient extends TOUAbstractImpl {
     }
 
     @Override
-    void writeByte(int b) {
+    void writeByte (int b) {
 
     }
 
-    void closeSocket() {
+    void closeSocket () {
         connectionManager.closeConnection();
     }
 }

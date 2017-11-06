@@ -9,13 +9,13 @@ class TOUSender extends Thread {
     private LinkedBlockingQueue<TOUPacket> packetQueue;
     private final Object lockTheQueue = new Object();
 
-    TOUSender(DatagramSocket socket, int queueCapacity) throws IOException {
+    TOUSender (DatagramSocket socket, int queueCapacity) throws IOException {
         this.socket = socket;
         packetQueue = new LinkedBlockingQueue<>(queueCapacity);
     }
 
     @Override
-    public void run() {
+    public void run () {
         try {
             while (!Thread.interrupted()) {
                 TOUPacket packet;
@@ -30,25 +30,25 @@ class TOUSender extends Thread {
         }
     }
 
-    void sendOnce(TOUPacket packet) throws IOException {
+    void sendOnce (TOUPacket packet) throws IOException {
         socket.send(PacketFactory.encapsulateIntoUDP(packet));
     }
 
-    void put(TOUPacket packet) throws InterruptedException {
+    void put (TOUPacket packet) throws InterruptedException {
         packetQueue.put(packet);
     }
 
-    void remove(short sequenceNumber) {
+    void remove (short sequenceNumber) {
         synchronized (lockTheQueue) {
             packetQueue.remove(new TOUPacket(null, null, sequenceNumber));
         }
     }
 
-    void remove(TCPPacket packet) {
+    void remove (TCPPacket packet) {
         remove(packet.getSequenceNumber());
     }
 
-    void remove(TOUPacket packet) {
+    void remove (TOUPacket packet) {
         remove(packet.getSequenceNumber());
     }
 }

@@ -17,7 +17,7 @@ class TOUReceiver extends Thread {
     private ConcurrentHashMap<TCPPacketType, ConcurrentHashMap<Integer, TOUPacket>> packetMapMap;
     private final Object lockPacketMap = new Object();
 
-    TOUReceiver(DatagramSocket socket, int packetSize) {
+    TOUReceiver (DatagramSocket socket, int packetSize) {
         this.socket = socket;
         packet = new DatagramPacket(new byte[packetSize], packetSize);
         packetMapMap = new ConcurrentHashMap<>();
@@ -28,7 +28,7 @@ class TOUReceiver extends Thread {
     }
 
     @Override
-    public void run() {
+    public void run () {
         try {
             while (!Thread.interrupted()) {
                 socket.receive(packet);
@@ -58,7 +58,7 @@ class TOUReceiver extends Thread {
         }
     }
 
-    TOUPacket takePacket(TCPPacketType type, int id) throws InterruptedException {
+    TOUPacket takePacket (TCPPacketType type, int id) throws InterruptedException {
         ConcurrentHashMap<Integer, TOUPacket> packetMap = packetMapMap.get(type);
         synchronized (lockPacketMap) {
             while (!packetMap.containsKey(id)) {
@@ -68,7 +68,7 @@ class TOUReceiver extends Thread {
         }
     }
 
-    Collection<TOUPacket> packetsOfType(TCPPacketType type) {
+    Collection<TOUPacket> packetsOfType (TCPPacketType type) {
         return packetMapMap.get(type).values();
     }
 

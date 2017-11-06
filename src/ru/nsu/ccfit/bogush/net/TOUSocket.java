@@ -8,20 +8,20 @@ import java.net.InetAddress;
 public class TOUSocket {
     private TOUClient client;
 
-    public TOUSocket(InetAddress address, int port) throws IOException, InterruptedException {
+    public TOUSocket (InetAddress address, int port) throws IOException, InterruptedException {
         client = new TOUClient(address, port);
     }
 
-    public InputStream getInputStream() throws IOException {
+    public InputStream getInputStream () throws IOException {
         return new TOUSocketInputStream(client);
     }
 
 
-    public OutputStream getOutputStream() throws IOException {
+    public OutputStream getOutputStream () throws IOException {
         return new TOUSocketOutputStream(client);
     }
 
-    public void close() throws IOException {
+    public void close () throws IOException {
         client.closeSocket();
     }
 }

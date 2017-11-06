@@ -6,12 +6,12 @@ import java.io.InputStream;
 class TOUSocketInputStream extends InputStream {
     private TOUAbstractImpl impl;
 
-    public TOUSocketInputStream(TOUAbstractImpl impl) {
+    public TOUSocketInputStream (TOUAbstractImpl impl) {
         this.impl = impl;
     }
 
     @Override
-    public int read() throws IOException {
+    public int read () throws IOException {
         try {
             return impl.readByte();
         } catch (InterruptedException e) {
