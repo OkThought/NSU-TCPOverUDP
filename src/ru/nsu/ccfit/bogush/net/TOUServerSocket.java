@@ -1,16 +1,16 @@
 package ru.nsu.ccfit.bogush.net;
 
-import java.net.SocketException;
+import java.io.IOException;
 
 public class TOUServerSocket {
     private final TOUServer server;
 
-    public TOUServerSocket (int port) throws SocketException {
+    public TOUServerSocket (int port) throws IOException {
         server = new TOUServer(port);
 
     }
 
-    public TOUSocket accept () {
+    public TOUSocket accept () throws IOException, InterruptedException {
         return server.accept();
     }
 }
