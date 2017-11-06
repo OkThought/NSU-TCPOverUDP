@@ -1,4 +1,4 @@
-package net;
+package ru.nsu.ccfit.bogush.net;
 
 import java.util.Arrays;
 
