@@ -8,11 +8,14 @@ import java.net.InetAddress;
  * ToU - TCP over UDP
  */
 class TOUClient extends TOUAbstractImpl {
+    private final TOUConnectionManager connectionManager;
+
     TOUClient(InetAddress address, int port) throws IOException, InterruptedException {
         DatagramSocket socket = new DatagramSocket(port, address);
         TOUSender sender = new TOUSender(socket, QUEUE_CAPACITY);
         TOUReceiver receiver = new TOUReceiver(socket, PACKET_SIZE);
-        new TOUConnectionManager(sender, receiver).connectToServer((short) port, (short) port, address);
+        connectionManager = new TOUConnectionManager(sender, receiver);
+        connectionManager.connectToServer((short) port, (short) port, address);
     }
 
     @Override
@@ -26,12 +29,6 @@ class TOUClient extends TOUAbstractImpl {
     }
 
     void closeSocket() {
-        /*
-        * TODO: wait until
-        * - all packets in sender are sent
-        * - all received packets are taken from receiver
-        * close the udp socket
-        * release all resources
-        */
+        connectionManager.closeConnection();
     }
 }

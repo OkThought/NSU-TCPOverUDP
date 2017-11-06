@@ -126,6 +126,12 @@ class TOUConnectionManager {
     }
 
     void closeConnection() {
-
+        /*
+         * TODO: wait until
+         * - all packets in sender are sent
+         * - all received packets are taken from receiver
+         * close the udp socket
+         * release all resources
+         */
     }
 }
