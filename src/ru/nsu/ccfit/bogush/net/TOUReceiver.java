@@ -9,6 +9,11 @@ import java.util.concurrent.ConcurrentHashMap;
 class TOUReceiver extends Thread {
     private DatagramSocket socket;
     private DatagramPacket packet;
+
+    private boolean sequenceNotStarted = true;
+    private short sequenceNumber;
+    private final Object sequenceLock = new Object();
+
     private ConcurrentHashMap<TCPPacketType, ConcurrentHashMap<Integer, TOUPacket>> packetMapMap;
     private final Object lockPacketMap = new Object();
 
@@ -32,7 +37,17 @@ class TOUReceiver extends Thread {
 
                 int key = tcpPacket.getAckSeq();
 
-                ConcurrentHashMap<Integer, TOUPacket> packetMap = packetMapMap.get(TCPPacketType.typeOf(tcpPacket));
+                TCPPacketType packetType = TCPPacketType.typeOf(tcpPacket);
+
+                if (packetType == TCPPacketType.ORDINARY && sequenceNotStarted) {
+                    synchronized (sequenceLock) {
+                        sequenceNumber = tcpPacket.getSequenceNumber();
+                        sequenceNotStarted = false;
+                        sequenceLock.notifyAll();
+                    }
+                }
+
+                ConcurrentHashMap<Integer, TOUPacket> packetMap = packetMapMap.get(packetType);
                 synchronized (lockPacketMap) {
                     packetMap.putIfAbsent(key, touPacket);
                     lockPacketMap.notifyAll();
@@ -55,5 +70,17 @@ class TOUReceiver extends Thread {
 
     Collection<TOUPacket> packetsOfType(TCPPacketType type) {
         return packetMapMap.get(type).values();
+    }
+
+
+    TOUPacket takeSubsequentOrdinaryPacket () throws InterruptedException {
+        int currentSequence;
+        synchronized (sequenceLock) {
+            while (sequenceNotStarted) {
+                sequenceLock.wait();
+            }
+            currentSequence = sequenceNumber++;
+        }
+        return takePacket(TCPPacketType.ORDINARY, currentSequence);
     }
 }

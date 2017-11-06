@@ -12,8 +12,10 @@ class TOUSocketInputStream extends InputStream {
 
     @Override
     public int read() throws IOException {
-        return impl.readByte();
+        try {
+            return impl.readByte();
+        } catch (InterruptedException e) {
+            throw new IOException(e);
+        }
     }
-
-
 }
