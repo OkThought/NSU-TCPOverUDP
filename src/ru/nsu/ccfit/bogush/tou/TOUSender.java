@@ -1,4 +1,6 @@
-package ru.nsu.ccfit.bogush.net;
+package ru.nsu.ccfit.bogush.tou;
+
+import ru.nsu.ccfit.bogush.tcp.TCPPacket;
 
 import java.io.IOException;
 import java.net.DatagramSocket;

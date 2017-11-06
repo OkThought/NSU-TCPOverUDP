@@ -1,9 +1,9 @@
-package ru.nsu.ccfit.bogush.net;
+package ru.nsu.ccfit.bogush.tcp;
 
 public enum TCPPacketType {
     ORDINARY, SYN, ACK, SYNACK;
 
-    static TCPPacketType typeOf (TCPPacket p) {
+    public static TCPPacketType typeOf (TCPPacket p) {
         if (!p.isSYN() && !p.isACK())
             return ORDINARY;
         if (!p.isSYN() &&  p.isACK())

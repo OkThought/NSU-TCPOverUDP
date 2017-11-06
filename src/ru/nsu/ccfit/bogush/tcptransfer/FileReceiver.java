@@ -1,7 +1,7 @@
 package ru.nsu.ccfit.bogush.tcptransfer;
 
 import java.io.*;
-import ru.nsu.ccfit.bogush.net.TOUSocket;
+import ru.nsu.ccfit.bogush.tou.TOUSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;

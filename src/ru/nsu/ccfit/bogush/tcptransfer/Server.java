@@ -1,7 +1,7 @@
 package ru.nsu.ccfit.bogush.tcptransfer;
 
-import ru.nsu.ccfit.bogush.net.TOUServerSocket;
-import ru.nsu.ccfit.bogush.net.TOUSocket;
+import ru.nsu.ccfit.bogush.tou.TOUServerSocket;
+import ru.nsu.ccfit.bogush.tou.TOUSocket;
 
 import java.io.IOException;
 

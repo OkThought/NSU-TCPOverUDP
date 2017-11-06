@@ -1,4 +1,6 @@
-package ru.nsu.ccfit.bogush.net;
+package ru.nsu.ccfit.bogush.tou;
+
+import ru.nsu.ccfit.bogush.tcp.TCPPacket;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;

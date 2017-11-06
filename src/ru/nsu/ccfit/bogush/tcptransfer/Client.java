@@ -1,6 +1,6 @@
 package ru.nsu.ccfit.bogush.tcptransfer;
 
-import ru.nsu.ccfit.bogush.net.TOUSocket;
+import ru.nsu.ccfit.bogush.tou.TOUSocket;
 
 import java.io.*;
 import java.net.InetAddress;

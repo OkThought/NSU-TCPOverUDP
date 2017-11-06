@@ -1,4 +1,4 @@
-package ru.nsu.ccfit.bogush.net;
+package ru.nsu.ccfit.bogush.tou;
 
 abstract class TOUAbstractImpl {
     static final int PACKET_SIZE = 576; // bytes

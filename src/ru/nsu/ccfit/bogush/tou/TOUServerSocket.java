@@ -1,4 +1,4 @@
-package ru.nsu.ccfit.bogush.net;
+package ru.nsu.ccfit.bogush.tou;
 
 import java.io.IOException;
 

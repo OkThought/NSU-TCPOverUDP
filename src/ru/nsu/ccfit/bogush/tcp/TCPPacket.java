@@ -1,8 +1,8 @@
-package ru.nsu.ccfit.bogush.net;
+package ru.nsu.ccfit.bogush.tcp;
 
 import java.util.Arrays;
 
-class TCPPacket {
+public class TCPPacket {
     private static final int SOURCE_PORT_POSITION           = 0;
     private static final int DESTINATION_PORT_POSITION      = SOURCE_PORT_POSITION + 2;
     private static final int DATA_OFFSET_POSITION           = DESTINATION_PORT_POSITION + 2;
@@ -90,7 +90,7 @@ class TCPPacket {
         return (b & flag) != 0;
     }
 
-    TCPPacket (int size) {
+    public TCPPacket (int size) {
         if (size < HEADER_SIZE)
             throw new IllegalArgumentException("size < HEADER_SIZE");
 
@@ -98,7 +98,7 @@ class TCPPacket {
         Arrays.fill(bytes, (byte) 0);
     }
 
-    TCPPacket (byte[] bytes) {
+    public TCPPacket (byte[] bytes) {
         this.bytes = bytes;
     }
 
@@ -137,27 +137,27 @@ class TCPPacket {
         bytes[at + 1] = byte0(x);
     }
 
-    boolean isACK () {
+    public boolean isACK () {
         return getFlag(ACK);
     }
 
-    void setACK (boolean value) {
+    public void setACK (boolean value) {
         setFlag(ACK, value);
     }
 
-    boolean isSYN () {
+    public boolean isSYN () {
         return getFlag(SYN);
     }
 
-    void setSYN (boolean value) {
+    public void setSYN (boolean value) {
         setFlag(SYN, value);
     }
 
-    boolean isFIN () {
+    public boolean isFIN () {
         return getFlag(FIN);
     }
 
-    void setFIN (boolean value) {
+    public void setFIN (boolean value) {
         setFlag(FIN, value);
     }
 
@@ -176,11 +176,11 @@ class TCPPacket {
         setShort(DATA_OFFSET_POSITION, dataOffset);
     }
 
-    private short getDataOffset () {
+    public  short getDataOffset () {
         return getShort(bytes, DATA_OFFSET_POSITION);
     }
 
-    void setSourcePort (short sourcePort) {
+    public void setSourcePort (short sourcePort) {
         setShort(SOURCE_PORT_POSITION, sourcePort);
     }
 
@@ -188,35 +188,35 @@ class TCPPacket {
         return getShort(bytes, SOURCE_PORT_POSITION);
     }
 
-    void setDestinationPort (short destinationPort) {
+    public void setDestinationPort (short destinationPort) {
         setShort(DESTINATION_PORT_POSITION, destinationPort);
     }
 
-    short getDestinationPort () {
+    public short getDestinationPort () {
         return getShort(bytes, DESTINATION_PORT_POSITION);
     }
 
-    void setSequenceNumber (short sequenceNumber) {
+    public void setSequenceNumber (short sequenceNumber) {
         setShort(SEQUENCE_NUMBER_POSITION, sequenceNumber);
     }
 
-    short getSequenceNumber () {
+    public short getSequenceNumber () {
         return getShort(bytes, SEQUENCE_NUMBER_POSITION);
     }
 
-    int getAckSeq () {
+    public int getAckSeq () {
         return getInt(bytes, SEQUENCE_NUMBER_POSITION);
     }
 
-    void setAckNumber (short ackNumber) {
+    public void setAckNumber (short ackNumber) {
         setShort(ACK_NUMBER_POSITION, ackNumber);
     }
 
-    short getAckNumber () {
+    public short getAckNumber () {
         return getShort(bytes, ACK_NUMBER_POSITION);
     }
 
-    byte[] getBytes () {
+    public byte[] getBytes () {
         return bytes;
     }
 }
