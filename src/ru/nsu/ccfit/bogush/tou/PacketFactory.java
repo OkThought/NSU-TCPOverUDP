@@ -7,8 +7,8 @@ import java.net.InetAddress;
 
 class PacketFactory {
     static DatagramPacket encapsulateIntoUDP (TCPPacket packet, InetAddress address) {
-        byte[] data = packet.getBytes();
-        return new DatagramPacket(data, data.length, address, packet.getDestinationPort());
+        byte[] data = packet.bytes();
+        return new DatagramPacket(data, data.length, address, packet.destinationPort());
     }
 
     static DatagramPacket encapsulateIntoUDP (TOUPacket packet) {
@@ -17,12 +17,12 @@ class PacketFactory {
 
 
     static TOUPacket encapsulateIntoTOU (TCPPacket packet, InetAddress address) {
-        return new TOUPacket(packet, address, packet.getSequenceNumber());
+        return new TOUPacket(packet, address, packet.sequenceNumber());
     }
 
     static TCPPacket decapsulateTCP (DatagramPacket packet) {
         TCPPacket p = new TCPPacket(packet.getData());
-        p.setSourcePort((short) packet.getPort());
+        p.sourcePort((short) packet.getPort());
 
         return p;
     }
