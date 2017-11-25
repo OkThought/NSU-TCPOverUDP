@@ -11,6 +11,10 @@ public class TCPPacket {
         Arrays.fill(bytes, (byte) 0);
     }
 
+    public TCPPacket (TCPPacket other) {
+        this(other.bytes);
+    }
+
     public TCPPacket (byte[] bytes) {
         this.bytes = bytes;
     }
@@ -82,7 +86,7 @@ public class TCPPacket {
         return getShort(bytes, SEQUENCE_NUMBER_POSITION);
     }
 
-    public int getAckSeq () {
+    public int getSequenceAndAckNumbers () {
         return getInt(bytes, SEQUENCE_NUMBER_POSITION);
     }
 
