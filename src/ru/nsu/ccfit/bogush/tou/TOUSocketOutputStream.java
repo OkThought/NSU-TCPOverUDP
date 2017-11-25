@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 class TOUSocketOutputStream extends OutputStream {
-    private TOUAbstractImpl impl;
+    private TOUImpl impl;
 
-    public TOUSocketOutputStream (TOUAbstractImpl impl) {
+    public TOUSocketOutputStream (TOUImpl impl) {
         this.impl = impl;
     }
 
