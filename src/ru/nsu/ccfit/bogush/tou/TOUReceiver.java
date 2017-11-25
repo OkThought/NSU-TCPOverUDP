@@ -38,13 +38,13 @@ class TOUReceiver extends Thread {
                 TCPPacket tcpPacket = PacketFactory.decapsulateTCP(packet);
                 TOUPacket touPacket = PacketFactory.encapsulateIntoTOU(tcpPacket, packet.getAddress());
 
-                int key = tcpPacket.getAckSeq();
+                int key = tcpPacket.sequenceAndAckNumbers();
 
                 TCPPacketType packetType = TCPPacketType.typeOf(tcpPacket);
 
                 if (packetType == TCPPacketType.ORDINARY && sequenceNotStarted) {
                     synchronized (sequenceLock) {
-                        sequenceNumber = tcpPacket.getSequenceNumber();
+                        sequenceNumber = tcpPacket.sequenceNumber();
                         sequenceNotStarted = false;
                         sequenceLock.notifyAll();
                     }
