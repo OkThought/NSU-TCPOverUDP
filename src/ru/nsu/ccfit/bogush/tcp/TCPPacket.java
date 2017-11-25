@@ -19,86 +19,86 @@ public class TCPPacket {
         this.bytes = bytes;
     }
 
-    public boolean isACK () {
-        return getFlag(ACK);
-    }
-
     public void setACK (boolean value) {
         setFlag(ACK, value);
     }
 
-    public boolean isSYN () {
-        return getFlag(SYN);
+    public boolean isACK () {
+        return getFlag(ACK);
     }
 
     public void setSYN (boolean value) {
         setFlag(SYN, value);
     }
 
-    public boolean isFIN () {
-        return getFlag(FIN);
+    public boolean isSYN () {
+        return getFlag(SYN);
     }
 
     public void setFIN (boolean value) {
         setFlag(FIN, value);
     }
 
-    public void setData (byte[] data) {
-        System.arraycopy(data, 0, this.bytes, getDataOffset(), data.length);
+    public boolean isFIN () {
+        return getFlag(FIN);
     }
 
-    public byte[] getData () {
-        return Arrays.copyOfRange(bytes, getDataOffset(), bytes.length);
+    public void data(byte[] data) {
+        System.arraycopy(data, 0, this.bytes, dataOffset(), data.length);
     }
 
-    public void setDataOffset (short dataOffset) {
+    public byte[] data() {
+        return Arrays.copyOfRange(bytes, dataOffset(), bytes.length);
+    }
+
+    public void dataOffset(short dataOffset) {
         if (dataOffset < DATA_OFFSET_MIN)
             throw new IllegalArgumentException("data offset is too small");
 
         setShort(DATA_OFFSET_POSITION, dataOffset);
     }
 
-    public  short getDataOffset () {
+    public  short dataOffset() {
         return getShort(bytes, DATA_OFFSET_POSITION);
     }
 
-    public void setSourcePort (short sourcePort) {
+    public void sourcePort(short sourcePort) {
         setShort(SOURCE_PORT_POSITION, sourcePort);
     }
 
-    public short getSourcePort () {
+    public short sourcePort() {
         return getShort(bytes, SOURCE_PORT_POSITION);
     }
 
-    public void setDestinationPort (short destinationPort) {
+    public void destinationPort(short destinationPort) {
         setShort(DESTINATION_PORT_POSITION, destinationPort);
     }
 
-    public short getDestinationPort () {
+    public short destinationPort() {
         return getShort(bytes, DESTINATION_PORT_POSITION);
     }
 
-    public void setSequenceNumber (short sequenceNumber) {
+    public void sequenceNumber(short sequenceNumber) {
         setShort(SEQUENCE_NUMBER_POSITION, sequenceNumber);
     }
 
-    public short getSequenceNumber () {
+    public short sequenceNumber() {
         return getShort(bytes, SEQUENCE_NUMBER_POSITION);
     }
 
-    public int getSequenceAndAckNumbers () {
-        return getInt(bytes, SEQUENCE_NUMBER_POSITION);
-    }
-
-    public void setAckNumber (short ackNumber) {
+    public void ackNumber(short ackNumber) {
         setShort(ACK_NUMBER_POSITION, ackNumber);
     }
 
-    public short getAckNumber () {
+    public short ackNumber() {
         return getShort(bytes, ACK_NUMBER_POSITION);
     }
 
-    public byte[] getBytes () {
+    public int sequenceAndAckNumbers() {
+        return getInt(bytes, SEQUENCE_NUMBER_POSITION);
+    }
+
+    public byte[] bytes() {
         return bytes;
     }
 
