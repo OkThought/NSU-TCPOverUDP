@@ -20,27 +20,35 @@ public class TCPPacket {
     }
 
     public void setACK (boolean value) {
-        setFlag(ACK, value);
+        setFlag(ACK_BITMAP, value);
     }
 
     public boolean isACK () {
-        return getFlag(ACK);
+        return getFlag(ACK_BITMAP);
     }
 
     public void setSYN (boolean value) {
-        setFlag(SYN, value);
+        setFlag(SYN_BITMAP, value);
     }
 
     public boolean isSYN () {
-        return getFlag(SYN);
+        return getFlag(SYN_BITMAP);
     }
 
     public void setFIN (boolean value) {
-        setFlag(FIN, value);
+        setFlag(FIN_BITMAP, value);
     }
 
     public boolean isFIN () {
-        return getFlag(FIN);
+        return getFlag(FIN_BITMAP);
+    }
+
+    public byte flags() {
+        return bytes[FLAGS_POSITION];
+    }
+
+    public void flags(byte flags) {
+        bytes[FLAGS_POSITION] = flags;
     }
 
     public void data(byte[] data) {
@@ -111,9 +119,9 @@ public class TCPPacket {
     private static final int ID_POSITION                    = FLAGS_POSITION + 1;
     private static final int DATA_OFFSET_MIN                = ID_POSITION + 16;
 
-    private static final byte ACK = (byte) 0b10000000;
-    private static final byte SYN = (byte) 0b01000000;
-    private static final byte FIN = (byte) 0b00100000;
+    public static final byte ACK_BITMAP = (byte) 0b10000000;
+    public static final byte SYN_BITMAP = (byte) 0b01000000;
+    public static final byte FIN_BITMAP = (byte) 0b00100000;
 
     public static final int HEADER_SIZE = DATA_OFFSET_MIN; // bytes;
 
