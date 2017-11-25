@@ -15,6 +15,12 @@ class TOUPacket {
         this.sequenceNumber = sequenceNumber;
     }
 
+    TOUPacket (TOUPacket other) {
+        this.tcpPacket = other.tcpPacket;
+        this.address = other.address;
+        this.sequenceNumber = other.sequenceNumber;
+    }
+
     TCPPacket getTcpPacket () {
         return tcpPacket;
     }
