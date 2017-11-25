@@ -47,7 +47,7 @@ class TOUSender extends Thread {
     }
 
     void remove (TCPPacket packet) {
-        remove(packet.getSequenceNumber());
+        remove(packet.sequenceNumber());
     }
 
     void remove (TOUPacket packet) {
