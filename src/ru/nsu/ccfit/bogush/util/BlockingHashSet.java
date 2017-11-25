@@ -29,8 +29,9 @@ public class BlockingHashSet<E> {
         return this.take(value);
     }
 
-    public synchronized void put(E value) {
-        set.add(value);
-        this.notifyAll();
+    public synchronized boolean put(E value) {
+        boolean updated = set.add(value);
+        if (updated) this.notifyAll();
+        return updated;
     }
 }

@@ -29,8 +29,9 @@ public class BlockingHashMap<K, V> {
         return map.get(key);
     }
 
-    public synchronized void put(K key, V value) {
-        map.put(key, value);
-        this.notifyAll();
+    public synchronized boolean put(K key, V value) {
+        boolean updated = null == map.put(key, value);
+        if (updated) this.notifyAll();
+        return updated;
     }
 }
