@@ -41,10 +41,4 @@ public enum TCPPacketType {
     public byte toByte() {
         return typeBitMap;
     }
-
-    public static class UnknownTCPPacketTypeException extends Exception {
-        public UnknownTCPPacketTypeException() {
-            super();
-        }
-    }
 }
