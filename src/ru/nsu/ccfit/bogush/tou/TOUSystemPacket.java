@@ -5,6 +5,8 @@ import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
 import java.net.InetAddress;
 
 public class TOUSystemPacket {
+    public static final TCPPacketType DEFAULT_TYPE = TCPPacketType.ORDINARY;
+
     private TCPPacketType type;
     private InetAddress sourceAddress;
     private int sourcePort;
@@ -23,8 +25,20 @@ public class TOUSystemPacket {
         this.ackNumber = other.ackNumber;
     }
 
+    public TOUSystemPacket() {
+        this(TCPPacketType.ORDINARY);
+    }
+
     public TOUSystemPacket(TCPPacketType type) {
-        this.type = type;
+        this(type, null, 0, null, 0, 0);
+    }
+
+    public TOUSystemPacket(TCPPacketType type,
+                           InetAddress sourceAddress, int sourcePort,
+                           InetAddress destinationAddress, int destinationPort,
+                           int systemMessage) {
+        this(type, sourceAddress, sourcePort, destinationAddress, destinationPort,
+                sequencePart(systemMessage), ackPart(systemMessage));
     }
 
     public TOUSystemPacket(TCPPacketType type,
@@ -38,18 +52,6 @@ public class TOUSystemPacket {
         this.destinationPort = destinationPort;
         this.sequenceNumber = sequenceNumber;
         this.ackNumber = ackNumber;
-    }
-
-    public TOUSystemPacket(TCPPacketType type,
-                           InetAddress sourceAddress, int sourcePort,
-                           InetAddress destinationAddress, int destinationPort,
-                           int systemMessage) {
-        this.type = type;
-        this.sourceAddress = sourceAddress;
-        this.sourcePort = sourcePort;
-        this.destinationAddress = destinationAddress;
-        this.destinationPort = destinationPort;
-        systemMessage(systemMessage);
     }
 
     public void type(TCPPacketType type) {
@@ -109,8 +111,8 @@ public class TOUSystemPacket {
     }
 
     public void systemMessage(int systemMessage) {
-        this.sequenceNumber = (short) (systemMessage >> 16);
-        this.ackNumber = (short) (systemMessage & 0x0000ffff);
+        this.sequenceNumber = sequencePart(systemMessage);
+        this.ackNumber = ackPart(systemMessage);
     }
 
     public int systemMessage() {
@@ -144,5 +146,13 @@ public class TOUSystemPacket {
         result = 31 * result + (int) sequenceNumber;
         result = 31 * result + (int) ackNumber;
         return result;
+    }
+
+    private static short sequencePart(int systemMessage) {
+        return (short) (systemMessage >> 16);
+    }
+
+    private static short ackPart(int systemMessage) {
+        return (short) systemMessage;
     }
 }
