@@ -2,139 +2,198 @@ package ru.nsu.ccfit.bogush.tou;
 
 import ru.nsu.ccfit.bogush.tcp.TCPPacket;
 import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
+import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 
 import java.io.IOException;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.*;
+import static ru.nsu.ccfit.bogush.tou.TOUConnectionState.*;
+
 /**
- * SYN: The active open is performed by the client sending a SYN to the server.
- * The client sets the segment's sequence number to a random value A.
+ *      SYN: The active open is performed by the client sending a SYN to the server.
+ *      The client sets the segment's sequence number to a random value A.
  * <p>
- * SYN-ACK: In response, the server replies with a SYN-ACK.
- * The acknowledgment number is set to one more than the received sequence number i.e. A+1,
- * and the sequence number that the server chooses for the packet is another random number, B.
+ *      SYN-ACK: In response, the server replies with a SYN-ACK.
+ *      The acknowledgment number is set to one more than the received sequence number i.e. A+1,
+ *      and the sequence number that the server chooses for the packet is another random number, B.
  * <p>
- * ACK: Finally, the client sends an ACK back to the server.
- * The sequence number is set to the received acknowledgement value i.e. A+1,
- * and the acknowledgement number is set to one more than the received sequence number i.e. B+1.
+ *      ACK: Finally, the client sends an ACK back to the server.
+ *      The sequence number is set to the received acknowledgement value i.e. A+1,
+ *      and the acknowledgement number is set to one more than the received sequence number i.e. B+1.
+ * <p>
+ *      FIN: Termination initiator sends FIN with
+ *      sequence number set to random value A
+ * <p>
+ *      FIN-ACK: Receiver of FIN sends FIN-ACK with
+ *      ack number set to A+1
+ *      and sequence number set to random value B
+ * <p>
+ *      ACK: Termination initiator sends ACK with
+ *      ack number set to B+1
+ *      and sequence number set to A+1
  */
 class TOUConnectionManager {
-    private static int rand () {
-        return ThreadLocalRandom.current().nextInt();
-    }
-
-    private static void swapSourceAndDestination (TCPPacket packet) {
-        short dstPort = packet.getSourcePort();
-        short srcPort = packet.getDestinationPort();
-        packet.setDestinationPort(dstPort);
-        packet.setSourcePort(srcPort);
-    }
-
-    private static TCPPacket createSYN (short srcPort, short dstPort) {
-        TCPPacket syn = new TCPPacket(TCPPacket.HEADER_SIZE);
-        syn.setSequenceNumber((short) rand()); // A
-        syn.setSYN(true);
-        syn.setDestinationPort(dstPort);
-        syn.setSourcePort(srcPort);
-        return syn;
-    }
-
-    private static TCPPacket createSYNACK (TCPPacket syn) {
-        TCPPacket synack = new TCPPacket(syn.getBytes());
-        synack.setAckNumber((short) (syn.getSequenceNumber() + 1)); // A + 1
-        synack.setSequenceNumber((short) rand()); // B
-        synack.setSYN(true);
-        synack.setACK(true);
-        swapSourceAndDestination(synack);
-        return synack;
-    }
-
-    private static TCPPacket createACK (TCPPacket synack) {
-        TCPPacket ack = new TCPPacket(synack.getBytes());
-        ack.setSYN(false);
-        ack.setSequenceNumber(synack.getAckNumber()); // A + 1
-        ack.setAckNumber((short) (synack.getSequenceNumber() + 1)); // B + 1
-        swapSourceAndDestination(ack);
-        return ack;
-    }
-
-
+    private InetAddress localAddress;
     private TOUSender sender;
     private TOUReceiver receiver;
+    private volatile TOUConnectionState state = CLOSED;
 
-    public TOUConnectionManager (TOUSender sender, TOUReceiver receiver) {
+    TOUConnectionManager(DatagramSocket socket, TOUSender sender, TOUReceiver receiver) {
+        this.localAddress = socket.getLocalAddress();
         this.sender = sender;
         this.receiver = receiver;
     }
 
-    private TOUPacket sendSYN (short sourcePort, short destinationPort, InetAddress destinationAddress)
-            throws InterruptedException {
-        TOUPacket syn = PacketFactory.encapsulateIntoTOU(
-                createSYN(sourcePort, destinationPort),
-                destinationAddress
-        );
-        sender.put(syn);
+    void connectToServer (short clientPort, short serverPort, InetAddress serverAddress)
+            throws InterruptedException, IOException, TCPUnknownPacketTypeException {
+        checkState(CLOSED);
+        startThreadsIfNotAlive();
 
-        int ackNum = syn.getSequenceNumber(); // A + 1
-        TOUPacket synack = receiver.takePacket(TCPPacketType.SYNACK, ackNum);
+        TOUSystemPacket synack = sendSynOrFin(SYN, localAddress, clientPort, serverPort, serverAddress);
+        state = SYN_SENT;
 
-        sender.remove(syn);
-        return synack;
+        sendACK(synack);
+        state = ESTABLISHED;
     }
 
-    private TOUPacket receiveSYN ()
-            throws InterruptedException {
-        return receiver.packetsOfType(TCPPacketType.SYN).iterator().next();
+    TOUSocket acceptConnection (int localPort)
+            throws InterruptedException, IOException, TCPUnknownPacketTypeException {
+        checkState(LISTEN);
+        startThreadsIfNotAlive();
+
+        TOUSystemPacket syn = receiveSynOrFin(SYN, localAddress, localPort);
+        state = SYN_RECEIVED;
+
+        TOUSystemPacket ack = sendSynackOrFinack(SYNACK, syn, localPort);
+        state = ESTABLISHED;
+
+        return new TOUSocket(syn.sourceAddress(), syn.sourcePort());
     }
 
-    private TOUPacket sendSYNACK (TOUPacket syn)
+    void closeConnection () {
+
+         // TODO: wait until all packets in sender are sent
+         // TODO: wait until all received packets are taken from receiver
+         // TODO: close the udp socket
+         // TODO: release all resources
+    }
+
+    private void checkState(TOUConnectionState expectedState) {
+        if (state != expectedState)
+            throw new IllegalStateException();
+    }
+
+    private TOUSystemPacket receiveSynOrFin(TCPPacketType type, InetAddress localAddress, int localPort)
             throws InterruptedException {
-        TOUPacket synack = PacketFactory.encapsulateIntoTOU(createSYNACK(syn.getTcpPacket()), syn.getAddress());
-        sender.put(synack);
+        assert type == SYN || type == FIN;
+        TOUSystemPacket expectedPacket = new TOUSystemPacket(type);
+        expectedPacket.destinationAddress(localAddress);
+        expectedPacket.destinationPort(localPort);
+        return receiver.receiveSystemPacket(expectedPacket);
+    }
 
-        int ackNum = synack.getSequenceNumber() + 1; // B + 1
-        int seqNum = synack.getTcpPacket().getAckNumber(); // A + 1
-        TOUPacket ack = receiver.takePacket(TCPPacketType.ACK, (seqNum << 16) | ackNum);
+    private TOUSystemPacket receiveSynackOrFinack(TCPPacketType type, TOUSystemPacket synOrFin)
+            throws InterruptedException {
+        assert type == SYNACK || type == FINACK;
+        TOUSystemPacket expectedPacket = new TOUSystemPacket(type);
+        expectedPacket.destinationAddress(synOrFin.sourceAddress());
+        expectedPacket.destinationPort(synOrFin.sourcePort());
+        expectedPacket.sourceAddress(synOrFin.destinationAddress());
+        expectedPacket.sourcePort(synOrFin.destinationPort());
+        expectedPacket.ackNumber((short) (synOrFin.sequenceNumber() + 1)); // A + 1
+        return receiver.receiveSystemPacket(expectedPacket);
+    }
 
-        sender.remove(synack.getSequenceNumber());
+    private TOUSystemPacket receiveACK(TOUSystemPacket synOrFin, TOUSystemPacket synackOrFinack)
+            throws InterruptedException {
+        TCPPacketType type = synOrFin.type();
+        assert type == SYN || type == FIN;
+        TOUSystemPacket expectedPacket = new TOUSystemPacket(synOrFin);
+        expectedPacket.type(ACK);
+        expectedPacket.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
+        expectedPacket.sequenceNumber(synackOrFinack.ackNumber()); // A + 1
+        return receiver.receiveSystemPacket(expectedPacket);
+    }
 
+    private TOUSystemPacket sendSynOrFin(TCPPacketType type, InetAddress sourceAddress, short sourcePort, short destinationPort, InetAddress destinationAddress)
+            throws InterruptedException, TCPUnknownPacketTypeException {
+        assert type == SYN || type == FIN;
+        TOUSystemPacket synOrFin = createSynOrFin(type, sourceAddress, sourcePort, destinationAddress, destinationPort);
+        sender.putInQueue(synOrFin);
+        TOUSystemPacket synackOrFinack = receiveSynackOrFinack(type == SYN ? SYNACK : FINACK, synOrFin);
+        sender.removeFromQueue(synOrFin);
+        return synackOrFinack;
+    }
+
+    private TOUSystemPacket sendSynackOrFinack(TCPPacketType type, TOUSystemPacket synOrFin, int localPort)
+            throws InterruptedException, IOException, TCPUnknownPacketTypeException {
+        assert type == SYNACK || type == FINACK;
+        TOUSystemPacket synackOrFinack = createSynackOrFinack(type, localAddress, localPort, synOrFin);
+        sender.putInQueue(synackOrFinack);
+        TOUSystemPacket ack = receiveACK(synOrFin, synackOrFinack);
+        sender.removeFromQueue(synackOrFinack);
         return ack;
     }
 
-    private void sendACK (TOUPacket synack)
-            throws InterruptedException, IOException {
-        TOUPacket ack = PacketFactory.encapsulateIntoTOU(createACK(synack.getTcpPacket()), synack.getAddress());
+    private void sendACK(TOUSystemPacket synackOrFinack)
+            throws InterruptedException, IOException, TCPUnknownPacketTypeException {
+        TCPPacketType type = synackOrFinack.type();
+        assert type == SYNACK || type == FINACK;
+        TOUSystemPacket ack = createACK(synackOrFinack);
+
         sender.sendOnce(ack);
+//        sender.putInQueue(ack);
+//        TOUSystemPacket expectedPacket = new TOUSystemPacket(synackOrFinack);
+//        expectedPacket.type(ACK);
+//        TOUSystemPacket ackToAck = receiver.receiveSystemPacket(expectedPacket);
+//        sender.removeFromQueue(ack);
     }
 
-    private void startThreadsIfNotAlive () {
+    private void startThreadsIfNotAlive() {
         if (!sender.isAlive()) sender.start();
         if (!receiver.isAlive()) receiver.start();
     }
 
-    void connectToServer (short clientPort, short serverPort, InetAddress serverAddress)
-            throws InterruptedException, IOException {
-        startThreadsIfNotAlive();
-        TOUPacket synack = sendSYN(clientPort, serverPort, serverAddress);
-        sendACK(synack);
+    private static short rand() {
+        return (short) ThreadLocalRandom.current().nextInt();
     }
 
-    TOUSocket acceptConnection ()
-            throws InterruptedException, IOException {
-        startThreadsIfNotAlive();
-        TOUPacket syn = receiveSYN();
-        TOUPacket ack = sendSYNACK(syn);
-        return new TOUSocket(ack.getAddress(), ack.getTcpPacket().getDestinationPort());
+    private static void swapSourceAndDestination(TCPPacket packet) {
+        short dstPort = packet.sourcePort();
+        short srcPort = packet.destinationPort();
+        packet.destinationPort(dstPort);
+        packet.sourcePort(srcPort);
     }
 
-    void closeConnection () {
-        /*
-         * TODO: wait until
-         * - all packets in sender are sent
-         * - all received packets are taken from receiver
-         * close the udp socket
-         * release all resources
-         */
+    private static TOUSystemPacket createSynOrFin(TCPPacketType type, InetAddress srcAddr, short srcPort, InetAddress dstAddr, short dstPort) {
+        assert type == SYN || type == FIN;
+        return new TOUSystemPacket(type, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0);
+    }
+
+    private static TOUSystemPacket createSynackOrFinack(TCPPacketType type, InetAddress localAddress, int localPort, TOUSystemPacket synOrFin) {
+        assert type == SYNACK || type == FINACK;
+        TOUSystemPacket synack = new TOUSystemPacket(synOrFin);
+        synack.sourceAddress(localAddress);
+        synack.sourcePort(localPort);
+        synack.type(type);
+        synack.ackNumber((short) (synOrFin.sequenceNumber() + 1));
+        synack.sequenceNumber(rand());
+        return synack;
+    }
+
+    private static TOUSystemPacket createACK(TOUSystemPacket synackOrFinack) {
+        TCPPacketType type = synackOrFinack.type();
+        assert type == SYNACK || type == FINACK;
+        TOUSystemPacket ack = new TOUSystemPacket(synackOrFinack);
+        ack.sourceAddress(synackOrFinack.destinationAddress());
+        ack.sourcePort(synackOrFinack.destinationPort());
+        ack.destinationAddress(synackOrFinack.sourceAddress());
+        ack.destinationPort(synackOrFinack.sourcePort());
+        ack.sequenceNumber(synackOrFinack.ackNumber()); // A + 1
+        ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
+        return ack;
     }
 }
