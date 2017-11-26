@@ -3,6 +3,21 @@ package ru.nsu.ccfit.bogush.tcp;
 import java.util.Arrays;
 
 public class TCPPacket {
+    private static final int SOURCE_PORT_POSITION           = 0;
+    private static final int DESTINATION_PORT_POSITION      = SOURCE_PORT_POSITION + 2;
+    private static final int DATA_OFFSET_POSITION           = DESTINATION_PORT_POSITION + 2;
+    private static final int SEQUENCE_NUMBER_POSITION       = DATA_OFFSET_POSITION + 2;
+    private static final int ACK_NUMBER_POSITION            = SEQUENCE_NUMBER_POSITION + 2;
+    private static final int FLAGS_POSITION                 = ACK_NUMBER_POSITION + 2;
+    private static final int ID_POSITION                    = FLAGS_POSITION + 1;
+    private static final int DATA_OFFSET_MIN                = ID_POSITION + 16;
+
+    public static final byte ACK_BITMAP = (byte) 0b10000000;
+    public static final byte SYN_BITMAP = (byte) 0b01000000;
+    public static final byte FIN_BITMAP = (byte) 0b00100000;
+
+    public static final int HEADER_SIZE = DATA_OFFSET_MIN; // bytes;
+
     public TCPPacket (int size) {
         if (size < HEADER_SIZE)
             throw new IllegalArgumentException("size < HEADER_SIZE");
@@ -109,21 +124,6 @@ public class TCPPacket {
     public byte[] bytes() {
         return bytes;
     }
-
-    private static final int SOURCE_PORT_POSITION           = 0;
-    private static final int DESTINATION_PORT_POSITION      = SOURCE_PORT_POSITION + 2;
-    private static final int DATA_OFFSET_POSITION           = DESTINATION_PORT_POSITION + 2;
-    private static final int SEQUENCE_NUMBER_POSITION       = DATA_OFFSET_POSITION + 2;
-    private static final int ACK_NUMBER_POSITION            = SEQUENCE_NUMBER_POSITION + 2;
-    private static final int FLAGS_POSITION                 = ACK_NUMBER_POSITION + 2;
-    private static final int ID_POSITION                    = FLAGS_POSITION + 1;
-    private static final int DATA_OFFSET_MIN                = ID_POSITION + 16;
-
-    public static final byte ACK_BITMAP = (byte) 0b10000000;
-    public static final byte SYN_BITMAP = (byte) 0b01000000;
-    public static final byte FIN_BITMAP = (byte) 0b00100000;
-
-    public static final int HEADER_SIZE = DATA_OFFSET_MIN; // bytes;
 
     private byte[] bytes;
 
