@@ -69,7 +69,7 @@ class PacketFactory {
     }
 
     static void mergeSystemPacket(TOUPacket dataPacket, TOUSystemPacket systemPacket) {
-        dataPacket.typeByte(systemPacket.type().toByte());
+        dataPacket.type(systemPacket.type());
         dataPacket.ackNumber(systemPacket.ackNumber());
     }
 
