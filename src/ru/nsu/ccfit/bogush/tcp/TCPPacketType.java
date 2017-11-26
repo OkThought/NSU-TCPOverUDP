@@ -25,7 +25,7 @@ public enum TCPPacketType {
 
 
     @SuppressWarnings({"ConstantConditions"})
-    public static TCPPacketType typeOf (TCPPacket p) throws UnknownTCPPacketTypeException {
+    public static TCPPacketType typeOf (TCPPacket p) throws TCPUnknownPacketTypeException {
         boolean a = p.isACK();
         boolean s = p.isSYN();
         boolean f = p.isFIN();
@@ -35,7 +35,7 @@ public enum TCPPacketType {
         if ( s &&  a && !f) return SYNACK;
         if (!s && !a &&  f) return FIN;
         if (!s &&  a &&  f) return FINACK;
-        throw new UnknownTCPPacketTypeException();
+        throw new TCPUnknownPacketTypeException();
     }
 
     public byte toByte() {
