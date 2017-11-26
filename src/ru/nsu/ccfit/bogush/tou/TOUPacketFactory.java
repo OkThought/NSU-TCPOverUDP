@@ -8,7 +8,7 @@ import java.net.InetAddress;
 
 import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.*;
 
-class PacketFactory {
+class TOUPacketFactory {
     static DatagramPacket encapsulateIntoUDP (TCPPacket packet, InetAddress destinationAddress) {
         byte[] data = packet.bytes();
         return new DatagramPacket(data, data.length, destinationAddress, packet.destinationPort());
