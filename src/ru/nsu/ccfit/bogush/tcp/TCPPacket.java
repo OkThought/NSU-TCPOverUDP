@@ -1,5 +1,6 @@
 package ru.nsu.ccfit.bogush.tcp;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class TCPPacket {
@@ -18,12 +19,17 @@ public class TCPPacket {
 
     public static final int HEADER_SIZE = DATA_OFFSET_MIN; // bytes;
 
-    public TCPPacket (int size) {
-        if (size < HEADER_SIZE)
-            throw new IllegalArgumentException("size < HEADER_SIZE");
+    private ByteBuffer bb;
+    private byte[] bytes;
 
-        bytes = new byte[size];
+    public TCPPacket() {
+        this(0);
+    }
+
+    public TCPPacket (int capacity) {
+        this(new byte[capacity + HEADER_SIZE]);
         Arrays.fill(bytes, (byte) 0);
+        dataOffset((short) DATA_OFFSET_MIN);
     }
 
     public TCPPacket (TCPPacket other) {
@@ -31,7 +37,11 @@ public class TCPPacket {
     }
 
     public TCPPacket (byte[] bytes) {
+        if (bytes.length < HEADER_SIZE) {
+            throw new IllegalArgumentException("Byte array too small: " + bytes.length + " < " + HEADER_SIZE);
+        }
         this.bytes = bytes;
+        this.bb = ByteBuffer.wrap(bytes);
     }
 
     public void setACK (boolean value) {
@@ -78,89 +88,59 @@ public class TCPPacket {
         if (dataOffset < DATA_OFFSET_MIN)
             throw new IllegalArgumentException("data offset is too small");
 
-        setShort(DATA_OFFSET_POSITION, dataOffset);
+        bb.putShort(DATA_OFFSET_POSITION, dataOffset);
     }
 
     public  short dataOffset() {
-        return getShort(bytes, DATA_OFFSET_POSITION);
+        return bb.getShort(DATA_OFFSET_POSITION);
     }
 
     public void sourcePort(short sourcePort) {
-        setShort(SOURCE_PORT_POSITION, sourcePort);
+        bb.putShort(SOURCE_PORT_POSITION, sourcePort);
     }
 
     public short sourcePort() {
-        return getShort(bytes, SOURCE_PORT_POSITION);
+        return bb.getShort(SOURCE_PORT_POSITION);
     }
 
     public void destinationPort(short destinationPort) {
-        setShort(DESTINATION_PORT_POSITION, destinationPort);
+        bb.putShort(DESTINATION_PORT_POSITION, destinationPort);
     }
 
     public short destinationPort() {
-        return getShort(bytes, DESTINATION_PORT_POSITION);
+        return bb.getShort(DESTINATION_PORT_POSITION);
     }
 
     public void sequenceNumber(short sequenceNumber) {
-        setShort(SEQUENCE_NUMBER_POSITION, sequenceNumber);
+        bb.putShort(SEQUENCE_NUMBER_POSITION, sequenceNumber);
     }
 
     public short sequenceNumber() {
-        return getShort(bytes, SEQUENCE_NUMBER_POSITION);
+        return bb.getShort(SEQUENCE_NUMBER_POSITION);
     }
 
     public void ackNumber(short ackNumber) {
-        setShort(ACK_NUMBER_POSITION, ackNumber);
+        bb.putShort(ACK_NUMBER_POSITION, ackNumber);
     }
 
     public short ackNumber() {
-        return getShort(bytes, ACK_NUMBER_POSITION);
+        return bb.getShort(ACK_NUMBER_POSITION);
     }
 
     public int sequenceAndAckNumbers() {
-        return getInt(bytes, SEQUENCE_NUMBER_POSITION);
+        return bb.getInt(SEQUENCE_NUMBER_POSITION);
+    }
+
+    public void sequenceAndAckNumbers(int value) {
+        bb.putInt(SEQUENCE_NUMBER_POSITION, value);
     }
 
     public byte[] bytes() {
         return bytes;
     }
 
-    private byte[] bytes;
-
-    private static byte byteAtPos (long x, int pos) {
-        return (byte) (x >> 8 * pos);
-    }
-
-    private static byte byte7 (long x) {
-        return (byte) (x >> 56);
-    }
-
-    private static byte byte6 (long x) {
-        return (byte) (x >> 48);
-    }
-
-    private static byte byte5 (long x) {
-        return (byte) (x >> 40);
-    }
-
-    private static byte byte4 (long x) {
-        return (byte) (x >> 32);
-    }
-
-    private static byte byte3 (long x) {
-        return (byte) (x >> 24);
-    }
-
-    private static byte byte2 (long x) {
-        return (byte) (x >> 16);
-    }
-
-    private static byte byte1 (long x) {
-        return (byte) (x >> 8);
-    }
-
-    private static byte byte0 (long x) {
-        return (byte) (x     );
+    public int capacity() {
+        return bytes.length - dataOffset();
     }
 
     private static byte setFlagActive (byte b, byte flag) {
@@ -169,28 +149,6 @@ public class TCPPacket {
 
     private static byte setFlagInactive (byte b, byte flag) {
         return (byte) (b & ~flag);
-    }
-
-    private static long getLong (byte[] bytes, int at) {
-        return  (long) (bytes[at    ]) << 56 +
-                (long) (bytes[at + 1]) << 48 +
-                (long) (bytes[at + 2]) << 40 +
-                (long) (bytes[at + 3]) << 32 +
-                (long) (bytes[at + 4]) << 24 +
-                (long) (bytes[at + 5]) << 16 +
-                (long) (bytes[at + 6]) <<  8 +
-                (long) (bytes[at + 7])      ;
-    }
-
-    private static int getInt (byte[] bytes, int at) {
-        return  (bytes[at    ] << 24) +
-                (bytes[at + 1] << 16) +
-                (bytes[at + 2] <<  8) +
-                (bytes[at + 3]      );
-    }
-
-    private static short getShort (byte[] bytes, int at) {
-        return (short) ((bytes[at] << 8) + bytes[at + 1]);
     }
 
     private static boolean getFlag (byte b, byte flag) {
@@ -207,28 +165,5 @@ public class TCPPacket {
 
     private boolean getFlag (byte flag) {
         return getFlag(bytes[FLAGS_POSITION], flag);
-    }
-
-    private void setLong (int at, long x) {
-        bytes[at    ] = byte7(x);
-        bytes[at + 1] = byte6(x);
-        bytes[at + 2] = byte5(x);
-        bytes[at + 3] = byte4(x);
-        bytes[at + 4] = byte3(x);
-        bytes[at + 5] = byte2(x);
-        bytes[at + 6] = byte1(x);
-        bytes[at + 7] = byte0(x);
-    }
-
-    private void setInt (int at, int x) {
-        bytes[at    ] = byte3(x);
-        bytes[at + 1] = byte2(x);
-        bytes[at + 2] = byte1(x);
-        bytes[at + 3] = byte0(x);
-    }
-
-    private void setShort (int at, short x) {
-        bytes[at    ] = byte1(x);
-        bytes[at + 1] = byte0(x);
     }
 }
