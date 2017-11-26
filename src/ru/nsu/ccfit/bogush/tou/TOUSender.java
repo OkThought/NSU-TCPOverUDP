@@ -26,7 +26,7 @@ class TOUSender extends Thread {
                 DatagramPacket udpPacket;
                 if (systemPackets.isEmpty()) {
                     TOUPacket dataPacket = dataPackets.take();
-                    udpPacket = PacketFactory.encapsulateIntoUDP(dataPacket);
+                    udpPacket = TOUPacketFactory.encapsulateIntoUDP(dataPacket);
                     dataPackets.put(dataPacket);
                 } else {
                     TOUSystemPacket systemPacket = systemPackets.take();
@@ -41,22 +41,22 @@ class TOUSender extends Thread {
 
     DatagramPacket prepareSystemPacketForSending(TOUSystemPacket systemPacket) throws InterruptedException {
         for (TOUPacket dataPacket: dataPackets) {
-            if (PacketFactory.canMerge(dataPacket, systemPacket)) {
-                PacketFactory.mergeSystemPacket(dataPacket, systemPacket);
-//                dataPackets.remove(dataPacket);
-                return PacketFactory.encapsulateIntoUDP(dataPacket);
+            if (TOUPacketFactory.canMerge(dataPacket, systemPacket)) {
+                TOUPacketFactory.mergeSystemPacket(dataPacket, systemPacket);
+//                dataPackets.removeFromQueue(dataPacket);
+                return TOUPacketFactory.encapsulateIntoUDP(dataPacket);
             }
         }
         // couldn't merge -> put back into queue
         systemPackets.put(systemPacket);
 
-        return PacketFactory.encapsulateIntoUDP(systemPacket);
+        return TOUPacketFactory.encapsulateIntoUDP(systemPacket);
     }
 
     boolean tryToMergeWithAnyDataPacket(TOUSystemPacket systemPacket) {
         for (TOUPacket dataPacket: dataPackets) {
-            if (PacketFactory.canMerge(dataPacket, systemPacket)) {
-                PacketFactory.mergeSystemPacket(dataPacket, systemPacket);
+            if (TOUPacketFactory.canMerge(dataPacket, systemPacket)) {
+                TOUPacketFactory.mergeSystemPacket(dataPacket, systemPacket);
                 return true;
             }
         }
@@ -64,11 +64,11 @@ class TOUSender extends Thread {
     }
 
     void sendOnce(TOUPacket packet) throws IOException {
-        udpSocket.send(PacketFactory.encapsulateIntoUDP(packet));
+        udpSocket.send(TOUPacketFactory.encapsulateIntoUDP(packet));
     }
 
     void sendOnce(TOUSystemPacket systemPacket) throws IOException {
-        udpSocket.send(PacketFactory.encapsulateIntoUDP(systemPacket));
+        udpSocket.send(TOUPacketFactory.encapsulateIntoUDP(systemPacket));
     }
 
     void putInQueue(TOUPacket packet) throws InterruptedException {
@@ -77,8 +77,8 @@ class TOUSender extends Thread {
 
     void putInQueue(TOUSystemPacket systemPacket) throws InterruptedException {
 //        for (TOUPacket dataPacket: dataPackets) {
-//            if (PacketFactory.canMerge(dataPacket, systemPacket)) {
-//                PacketFactory.mergeSystemPacket(dataPacket, systemPacket);
+//            if (TOUPacketFactory.canMerge(dataPacket, systemPacket)) {
+//                TOUPacketFactory.mergeSystemPacket(dataPacket, systemPacket);
 //                return;
 //            }
 //        }
@@ -89,19 +89,19 @@ class TOUSender extends Thread {
         dataPackets.removeIf(packet -> packet.sequenceNumber() == sequenceNumber);
     }
 
-    boolean remove(TOUSystemPacket systemPacket) throws TCPUnknownPacketTypeException {
+    boolean removeFromQueue(TOUSystemPacket systemPacket) throws TCPUnknownPacketTypeException {
         boolean removed = systemPackets.remove(systemPacket);
         if (removed) return true;
         for (TOUPacket dataPacket: dataPackets) {
-            if (PacketFactory.isMergedWithSystemPacket(dataPacket, systemPacket)) {
-                PacketFactory.unmergeSystemPacket(dataPacket);
+            if (TOUPacketFactory.isMergedWithSystemPacket(dataPacket, systemPacket)) {
+                TOUPacketFactory.unmergeSystemPacket(dataPacket);
                 return true;
             }
         }
         return false;
     }
 
-    void remove(TOUPacket packet) {
+    void removeFromQueue(TOUPacket packet) {
         dataPackets.remove(packet);
     }
 }
