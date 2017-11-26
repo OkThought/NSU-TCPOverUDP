@@ -9,32 +9,44 @@ class TOUPacket {
     private InetAddress address;
     private short sequenceNumber;
 
-    TOUPacket (TCPPacket tcpPacket, InetAddress address, short sequenceNumber) {
+    TOUPacket(TCPPacket tcpPacket, InetAddress address, short sequenceNumber) {
         this.tcpPacket = tcpPacket;
         this.address = address;
         this.sequenceNumber = sequenceNumber;
     }
 
-    TOUPacket (TOUPacket other) {
+    TOUPacket(TOUPacket other) {
         this.tcpPacket = other.tcpPacket;
         this.address = other.address;
         this.sequenceNumber = other.sequenceNumber;
     }
 
-    TCPPacket getTcpPacket () {
+    public void tcpPacket(TCPPacket tcpPacket) {
+        this.tcpPacket = tcpPacket;
+    }
+
+    TCPPacket tcpPacket() {
         return tcpPacket;
     }
 
-    short getSequenceNumber () {
+    public void sequenceNumber(short sequenceNumber) {
+        this.sequenceNumber = sequenceNumber;
+    }
+
+    short sequenceNumber() {
         return sequenceNumber;
     }
 
-    InetAddress getAddress () {
+    public void address(InetAddress address) {
+        this.address = address;
+    }
+
+    InetAddress address() {
         return address;
     }
 
     @Override
-    public boolean equals (Object o) {
+    public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
@@ -44,7 +56,7 @@ class TOUPacket {
     }
 
     @Override
-    public int hashCode () {
+    public int hashCode() {
         return sequenceNumber;
     }
 }
