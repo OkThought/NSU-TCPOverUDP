@@ -15,14 +15,14 @@ public class TOUSystemPacket {
     private short sequenceNumber;
     private short ackNumber;
 
-    public TOUSystemPacket(TOUSystemPacket other) {
-        this.type = other.type;
-        this.sourceAddress = other.sourceAddress;
-        this.sourcePort = other.sourcePort;
-        this.destinationAddress = other.destinationAddress;
-        this.destinationPort = other.destinationPort;
-        this.sequenceNumber = other.sequenceNumber;
-        this.ackNumber = other.ackNumber;
+    public TOUSystemPacket(TOUSystemPacket that) {
+        this.type = that.type;
+        this.sourceAddress = that.sourceAddress;
+        this.sourcePort = that.sourcePort;
+        this.destinationAddress = that.destinationAddress;
+        this.destinationPort = that.destinationPort;
+        this.sequenceNumber = that.sequenceNumber;
+        this.ackNumber = that.ackNumber;
     }
 
     public TOUSystemPacket() {
@@ -52,6 +52,14 @@ public class TOUSystemPacket {
         this.destinationPort = destinationPort;
         this.sequenceNumber = sequenceNumber;
         this.ackNumber = ackNumber;
+    }
+
+    private static short sequencePart(int systemMessage) {
+        return (short) (systemMessage >> 16);
+    }
+
+    private static short ackPart(int systemMessage) {
+        return (short) systemMessage;
     }
 
     public void type(TCPPacketType type) {
@@ -146,13 +154,5 @@ public class TOUSystemPacket {
         result = 31 * result + (int) sequenceNumber;
         result = 31 * result + (int) ackNumber;
         return result;
-    }
-
-    private static short sequencePart(int systemMessage) {
-        return (short) (systemMessage >> 16);
-    }
-
-    private static short ackPart(int systemMessage) {
-        return (short) systemMessage;
     }
 }
