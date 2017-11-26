@@ -13,11 +13,12 @@ public class TOUServerSocket {
         this.port = port;
         DatagramSocket socket = new DatagramSocket(port);
         impl = new TOUImpl(socket);
+        impl.bind(port);
     }
 
     public TOUSocket accept () throws IOException, InterruptedException {
         try {
-            return impl.accept(port);
+            return impl.accept();
         } catch (TCPUnknownPacketTypeException e) {
             throw new IOException(e);
         }

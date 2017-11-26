@@ -42,14 +42,18 @@ class TOUImpl {
     }
 
     void closeSocket () {
-        connectionManager.closeConnection();
+        connectionManager.close();
     }
 
-    TOUSocket accept(int port) throws IOException, InterruptedException, TCPUnknownPacketTypeException {
-        return connectionManager.acceptConnection(port);
+    public void bind(int port) {
+        connectionManager.bind(port);
+    }
+
+    TOUSocket accept() throws IOException, InterruptedException, TCPUnknownPacketTypeException {
+        return connectionManager.accept();
     }
 
     void connect (InetAddress address, int port) throws IOException, InterruptedException, TCPUnknownPacketTypeException {
-        connectionManager.connectToServer((short) port, (short) port, address);
+        connectionManager.connect(address, port);
     }
 }

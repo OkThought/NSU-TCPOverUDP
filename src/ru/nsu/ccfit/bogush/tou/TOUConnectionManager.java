@@ -36,44 +36,52 @@ import static ru.nsu.ccfit.bogush.tou.TOUConnectionState.*;
  *      and sequence number set to A+1
  */
 class TOUConnectionManager {
-    private InetAddress localAddress;
-    private TOUSender sender;
-    private TOUReceiver receiver;
+    private final DatagramSocket datagramSocket;
+    private final TOUSender sender;
+    private final TOUReceiver receiver;
     private volatile TOUConnectionState state = CLOSED;
 
-    TOUConnectionManager(DatagramSocket socket, TOUSender sender, TOUReceiver receiver) {
-        this.localAddress = socket.getLocalAddress();
+    TOUConnectionManager(DatagramSocket datagramSocket, TOUSender sender, TOUReceiver receiver) {
+        this.datagramSocket = datagramSocket;
         this.sender = sender;
         this.receiver = receiver;
     }
 
-    void connectToServer (short clientPort, short serverPort, InetAddress serverAddress)
+    public void bind(int port) {
+        checkState(CLOSED);
+        state = LISTEN;
+    }
+
+    void connect(InetAddress serverAddress, int serverPort)
             throws InterruptedException, IOException, TCPUnknownPacketTypeException {
         checkState(CLOSED);
         startThreadsIfNotAlive();
+        datagramSocket.connect(serverAddress, serverPort);
 
-        TOUSystemPacket synack = sendSynOrFin(SYN, localAddress, clientPort, serverPort, serverAddress);
+        TOUSystemPacket synack = sendSynOrFin(SYN,
+                datagramSocket.getLocalAddress(), datagramSocket.getLocalPort(),
+                serverPort, serverAddress);
         state = SYN_SENT;
 
         sendACK(synack);
         state = ESTABLISHED;
     }
 
-    TOUSocket acceptConnection (int localPort)
+    TOUSocket accept()
             throws InterruptedException, IOException, TCPUnknownPacketTypeException {
         checkState(LISTEN);
         startThreadsIfNotAlive();
 
-        TOUSystemPacket syn = receiveSynOrFin(SYN, localAddress, localPort);
+        TOUSystemPacket syn = receiveSynOrFin(SYN, datagramSocket.getLocalAddress(), datagramSocket.getLocalPort());
         state = SYN_RECEIVED;
 
-        TOUSystemPacket ack = sendSynackOrFinack(SYNACK, syn, localPort);
+        TOUSystemPacket ack = sendSynackOrFinack(SYNACK, syn, datagramSocket.getLocalPort());
         state = ESTABLISHED;
 
         return new TOUSocket(syn.sourceAddress(), syn.sourcePort());
     }
 
-    void closeConnection () {
+    void close() {
 
          // TODO: wait until all packets in sender are sent
          // TODO: wait until all received packets are taken from receiver
@@ -82,8 +90,9 @@ class TOUConnectionManager {
     }
 
     private void checkState(TOUConnectionState expectedState) {
-        if (state != expectedState)
-            throw new IllegalStateException();
+        if (state != expectedState) {
+            throw new IllegalStateException("State found: " + state + ". State expected: " + expectedState);
+        }
     }
 
     private TOUSystemPacket receiveSynOrFin(TCPPacketType type, InetAddress localAddress, int localPort)
@@ -118,7 +127,7 @@ class TOUConnectionManager {
         return receiver.receiveSystemPacket(expectedPacket);
     }
 
-    private TOUSystemPacket sendSynOrFin(TCPPacketType type, InetAddress sourceAddress, short sourcePort, short destinationPort, InetAddress destinationAddress)
+    private TOUSystemPacket sendSynOrFin(TCPPacketType type, InetAddress sourceAddress, int sourcePort, int destinationPort, InetAddress destinationAddress)
             throws InterruptedException, TCPUnknownPacketTypeException {
         assert type == SYN || type == FIN;
         TOUSystemPacket synOrFin = createSynOrFin(type, sourceAddress, sourcePort, destinationAddress, destinationPort);
@@ -131,7 +140,7 @@ class TOUConnectionManager {
     private TOUSystemPacket sendSynackOrFinack(TCPPacketType type, TOUSystemPacket synOrFin, int localPort)
             throws InterruptedException, IOException, TCPUnknownPacketTypeException {
         assert type == SYNACK || type == FINACK;
-        TOUSystemPacket synackOrFinack = createSynackOrFinack(type, localAddress, localPort, synOrFin);
+        TOUSystemPacket synackOrFinack = createSynackOrFinack(type, datagramSocket.getLocalAddress(), localPort, synOrFin);
         sender.putInQueue(synackOrFinack);
         TOUSystemPacket ack = receiveACK(synOrFin, synackOrFinack);
         sender.removeFromQueue(synackOrFinack);
@@ -168,7 +177,7 @@ class TOUConnectionManager {
         packet.sourcePort(srcPort);
     }
 
-    private static TOUSystemPacket createSynOrFin(TCPPacketType type, InetAddress srcAddr, short srcPort, InetAddress dstAddr, short dstPort) {
+    private static TOUSystemPacket createSynOrFin(TCPPacketType type, InetAddress srcAddr, int srcPort, InetAddress dstAddr, int dstPort) {
         assert type == SYN || type == FIN;
         return new TOUSystemPacket(type, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0);
     }

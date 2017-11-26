@@ -12,7 +12,7 @@ public class TOUSocket {
     private TOUImpl impl;
 
     public TOUSocket (InetAddress address, int port) throws IOException {
-        DatagramSocket socket = new DatagramSocket(port, address);
+        DatagramSocket socket = new DatagramSocket();
         impl = new TOUImpl(socket);
         try {
             impl.connect(address, port);
