@@ -1,27 +1,29 @@
 package ru.nsu.ccfit.bogush.tou;
 
 import ru.nsu.ccfit.bogush.tcp.TCPPacket;
+import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
+import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 
 import java.net.InetAddress;
 
 class TOUPacket {
     private TCPPacket tcpPacket;
-    private InetAddress address;
-    private short sequenceNumber;
+    private InetAddress sourceAddress;
+    private InetAddress destinationAddress;
 
-    TOUPacket(TCPPacket tcpPacket, InetAddress address, short sequenceNumber) {
+    TOUPacket(TCPPacket tcpPacket, InetAddress sourceAddress, InetAddress destinationAddress) {
         this.tcpPacket = tcpPacket;
-        this.address = address;
-        this.sequenceNumber = sequenceNumber;
+        this.sourceAddress = sourceAddress;
+        this.destinationAddress = destinationAddress;
     }
 
     TOUPacket(TOUPacket other) {
-        this.tcpPacket = other.tcpPacket;
-        this.address = other.address;
-        this.sequenceNumber = other.sequenceNumber;
+        this.tcpPacket = new TCPPacket(other.tcpPacket);
+        this.sourceAddress = other.sourceAddress;
+        this.destinationAddress = other.destinationAddress;
     }
 
-    public void tcpPacket(TCPPacket tcpPacket) {
+    void tcpPacket(TCPPacket tcpPacket) {
         this.tcpPacket = tcpPacket;
     }
 
@@ -29,20 +31,68 @@ class TOUPacket {
         return tcpPacket;
     }
 
-    public void sequenceNumber(short sequenceNumber) {
-        this.sequenceNumber = sequenceNumber;
+    void type(TCPPacketType type) {
+        tcpPacket.flags(type.toByte());
+    }
+
+    TCPPacketType type() throws TCPUnknownPacketTypeException {
+        return TCPPacketType.typeOf(tcpPacket);
+    }
+
+    byte typeByte() {
+        return tcpPacket.flags();
+    }
+
+    void sequenceNumber(short sequenceNumber) {
+        tcpPacket.sequenceNumber(sequenceNumber);
     }
 
     short sequenceNumber() {
-        return sequenceNumber;
+        return tcpPacket.sequenceNumber();
     }
 
-    public void address(InetAddress address) {
-        this.address = address;
+    public void ackNumber(short ackNumber) {
+        tcpPacket.ackNumber(ackNumber);
     }
 
-    InetAddress address() {
-        return address;
+    public short ackNumber() {
+        return tcpPacket.ackNumber();
+    }
+
+    public int sequenceAndAckNumbers() {
+        return tcpPacket.sequenceAndAckNumbers();
+    }
+
+    void sourceAddress(InetAddress sourceAddress) {
+        this.sourceAddress = sourceAddress;
+    }
+
+    InetAddress sourceAddress() {
+        return sourceAddress;
+    }
+
+    void sourcePort(short sourcePort) {
+        tcpPacket.sourcePort(sourcePort);
+    }
+
+    short sourcePort() {
+        return tcpPacket.sourcePort();
+    }
+
+    void destinationAddress(InetAddress destinationAddress) {
+        this.destinationAddress = destinationAddress;
+    }
+
+    InetAddress destinationAddress() {
+        return destinationAddress;
+    }
+
+    void destinationPort(short destinationPort) {
+        tcpPacket.destinationPort(destinationPort);
+    }
+
+    short destinationPort() {
+        return tcpPacket.destinationPort();
     }
 
     @Override
@@ -50,13 +100,27 @@ class TOUPacket {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        TOUPacket touPacket = (TOUPacket) o;
+        TOUPacket other = (TOUPacket) o;
 
-        return sequenceNumber == touPacket.sequenceNumber;
+        if (tcpPacket == null ? other.tcpPacket != null : other.tcpPacket == null) return false;
+
+        if (sourcePort() != other.sourcePort() ||
+            destinationPort() != other.destinationPort() ||
+            sequenceNumber() != other.sequenceNumber()) return false;
+
+        if (destinationAddress != null ? !destinationAddress.equals(other.destinationAddress) : other.destinationAddress != null)
+            return false;
+
+        return sourceAddress != null ? sourceAddress.equals(other.sourceAddress) : other.sourceAddress == null;
     }
 
     @Override
     public int hashCode() {
-        return sequenceNumber;
+        int result = tcpPacket != null ? tcpPacket.sequenceNumber(): 0;
+        result = 31 * result + (tcpPacket != null ? tcpPacket.sourcePort() : 0);
+        result = 31 * result + (tcpPacket != null ? tcpPacket.destinationPort() : 0);
+        result = 31 * result + (sourceAddress != null ? sourceAddress.hashCode() : 0);
+        result = 31 * result + (destinationAddress != null ? destinationAddress.hashCode() : 0);
+        return result;
     }
 }
