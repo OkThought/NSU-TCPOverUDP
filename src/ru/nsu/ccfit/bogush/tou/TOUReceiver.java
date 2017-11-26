@@ -2,32 +2,30 @@ package ru.nsu.ccfit.bogush.tou;
 
 import ru.nsu.ccfit.bogush.tcp.TCPPacket;
 import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
+import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
+import ru.nsu.ccfit.bogush.util.BlockingHashMap;
+import ru.nsu.ccfit.bogush.util.BlockingHashSet;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
+import java.net.InetAddress;
+
+import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.ORDINARY;
 
 class TOUReceiver extends Thread {
     private DatagramSocket socket;
     private DatagramPacket packet;
 
-    private boolean sequenceNotStarted = true;
-    private short sequenceNumber;
-    private final Object sequenceLock = new Object();
+    private volatile boolean ignoreDataPackets = true;
 
-    private ConcurrentHashMap<TCPPacketType, ConcurrentHashMap<Integer, TOUPacket>> packetMapMap;
-    private final Object lockPacketMap = new Object();
+    private final BlockingHashMap<Short, byte[]> dataMap = new BlockingHashMap<>();
+    private final BlockingHashMap<TOUSystemPacket, TOUSystemPacket> systemPacketMap = new BlockingHashMap<>();
+
 
     TOUReceiver (DatagramSocket socket, int packetSize) {
         this.socket = socket;
         packet = new DatagramPacket(new byte[packetSize], packetSize);
-        packetMapMap = new ConcurrentHashMap<>();
-        packetMapMap.put(TCPPacketType.ORDINARY, new ConcurrentHashMap<>());
-        packetMapMap.put(TCPPacketType.ACK, new ConcurrentHashMap<>());
-        packetMapMap.put(TCPPacketType.SYN, new ConcurrentHashMap<>());
-        packetMapMap.put(TCPPacketType.SYNACK, new ConcurrentHashMap<>());
     }
 
     @Override
@@ -35,55 +33,66 @@ class TOUReceiver extends Thread {
         try {
             while (!Thread.interrupted()) {
                 socket.receive(packet);
-                TCPPacket tcpPacket = PacketFactory.decapsulateTCP(packet);
-                TOUPacket touPacket = PacketFactory.encapsulateIntoTOU(tcpPacket, packet.getAddress());
+                TCPPacket tcpPacket = TOUPacketFactory.decapsulateTCP(packet);
 
-                int key = tcpPacket.sequenceAndAckNumbers();
+                if (!ignoreDataPackets && tcpPacket.data().length > 0) {
+                    dataMap.put(tcpPacket.sequenceNumber(), tcpPacket.data());
+                }
 
                 TCPPacketType packetType = TCPPacketType.typeOf(tcpPacket);
+                if (packetType == ORDINARY) continue;
 
-                if (packetType == TCPPacketType.ORDINARY && sequenceNotStarted) {
-                    synchronized (sequenceLock) {
-                        sequenceNumber = tcpPacket.sequenceNumber();
-                        sequenceNotStarted = false;
-                        sequenceLock.notifyAll();
-                    }
-                }
+                InetAddress sourceAddress = packet.getAddress();
+                int sourcePort = tcpPacket.sourcePort();
+                int destinationPort = tcpPacket.destinationPort();
+                InetAddress destinationAddress = socket.getInetAddress();
 
-                ConcurrentHashMap<Integer, TOUPacket> packetMap = packetMapMap.get(packetType);
-                synchronized (lockPacketMap) {
-                    packetMap.putIfAbsent(key, touPacket);
-                    lockPacketMap.notifyAll();
+                TOUSystemPacket systemPacket = new TOUSystemPacket(packetType,
+                        sourceAddress, sourcePort,
+                        destinationAddress, destinationPort,
+                        tcpPacket.sequenceNumber(), tcpPacket.ackNumber());
+
+                TOUSystemPacket key = new TOUSystemPacket(packetType);
+                key.destinationAddress(destinationAddress);
+                key.destinationPort(destinationPort);
+                switch (packetType) {
+                    case ACK:
+                        key.sourceAddress(sourceAddress);
+                        key.sourcePort(sourcePort);
+                        key.sequenceNumber(tcpPacket.sequenceNumber());
+                        key.ackNumber(tcpPacket.ackNumber());
+                        break;
+                    case SYN:
+                        break;
+                    case SYNACK:
+                        key.sourceAddress(sourceAddress);
+                        key.sourcePort(sourcePort);
+                        key.ackNumber(tcpPacket.ackNumber());
+                        break;
+                    case FIN:
+                        break;
+                    case FINACK:
+                        key.sourceAddress(sourceAddress);
+                        key.sourcePort(sourcePort);
+                        key.ackNumber(tcpPacket.ackNumber());
+                        break;
                 }
+                systemPacketMap.put(key, systemPacket);
             }
-        } catch (IOException e) {
+        } catch (IOException | TCPUnknownPacketTypeException e) {
             e.printStackTrace();
         }
     }
 
-    TOUPacket takePacket (TCPPacketType type, int id) throws InterruptedException {
-        ConcurrentHashMap<Integer, TOUPacket> packetMap = packetMapMap.get(type);
-        synchronized (lockPacketMap) {
-            while (!packetMap.containsKey(id)) {
-                lockPacketMap.wait();
-            }
-            return packetMap.remove(id);
-        }
+    void ignoreDataPackets(boolean newValue) {
+        ignoreDataPackets = newValue;
     }
 
-    Collection<TOUPacket> packetsOfType (TCPPacketType type) {
-        return packetMapMap.get(type).values();
+    byte[] takeDataBySequenceNumber(short sequenceNumber) throws InterruptedException {
+        return dataMap.take(sequenceNumber);
     }
 
-
-    TOUPacket takeSubsequentOrdinaryPacket () throws InterruptedException {
-        int currentSequence;
-        synchronized (sequenceLock) {
-            while (sequenceNotStarted) {
-                sequenceLock.wait();
-            }
-            currentSequence = sequenceNumber++;
-        }
-        return takePacket(TCPPacketType.ORDINARY, currentSequence);
+    TOUSystemPacket receiveSystemPacket(TOUSystemPacket systemPacketKey) throws InterruptedException {
+        return systemPacketMap.take(systemPacketKey);
     }
 }
