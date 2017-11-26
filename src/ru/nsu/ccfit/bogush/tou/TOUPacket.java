@@ -39,6 +39,10 @@ class TOUPacket {
         return TCPPacketType.typeOf(tcpPacket);
     }
 
+    void typeByte(byte typeByte) {
+        tcpPacket.flags(typeByte);
+    }
+
     byte typeByte() {
         return tcpPacket.flags();
     }
