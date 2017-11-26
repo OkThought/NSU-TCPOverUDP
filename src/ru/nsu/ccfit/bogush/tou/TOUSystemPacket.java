@@ -6,46 +6,88 @@ import java.net.InetAddress;
 
 public class TOUSystemPacket {
     private TCPPacketType type;
-    private InetAddress address;
-    private int port;
-    private int systemMessage;
+    private InetAddress sourceAddress;
+    private int sourcePort;
+    private InetAddress destinationAddress;
+    private int destinationPort;
+    private short sequenceNumber;
+    private short ackNumber;
 
-    public TOUSystemPacket(TCPPacketType type, InetAddress address, int port, int systemMessage) {
+
+    public TOUSystemPacket(TCPPacketType type,
+                           InetAddress sourceAddress, int sourcePort,
+                           InetAddress destinationAddress, int destinationPort,
+                           int systemMessage) {
         this.type = type;
-        this.address = address;
-        this.port = port;
-        this.systemMessage = systemMessage;
-    }
-
-    public TCPPacketType type() {
-        return type;
+        this.sourceAddress = sourceAddress;
+        this.sourcePort = sourcePort;
+        this.destinationAddress = destinationAddress;
+        this.destinationPort = destinationPort;
+        systemMessage(systemMessage);
     }
 
     public void type(TCPPacketType type) {
         this.type = type;
     }
 
-    public InetAddress address() {
-        return address;
+    public TCPPacketType type() {
+        return type;
     }
 
-    public void address(InetAddress address) {
-        this.address = address;
+    public void sourceAddress(InetAddress sourceAddress) {
+        this.sourceAddress = sourceAddress;
     }
 
-    public int port() {
-        return port;
+    public InetAddress sourceAddress() {
+        return sourceAddress;
     }
 
-    public void port(int port) {
-        this.port = port;
+    public void sourcePort(int sourcePort) {
+        this.sourcePort = sourcePort;
     }
 
-    public int systemMessage() {
-        return systemMessage;
+    public int sourcePort() {
+        return sourcePort;
+    }
+
+    public void destinationAddress(InetAddress destinationAddress) {
+        this.destinationAddress = destinationAddress;
+    }
+
+    public InetAddress destinationAddress() {
+        return destinationAddress;
+    }
+
+    public void destinationPort(int destinationPort) {
+        this.destinationPort = destinationPort;
+    }
+
+    public int destinationPort() {
+        return destinationPort;
+    }
+
+    public short sequenceNumber() {
+        return sequenceNumber;
+    }
+
+    public void sequenceNumber(short sequenceNumber) {
+        this.sequenceNumber = sequenceNumber;
+    }
+
+    public short ackNumber() {
+        return ackNumber;
+    }
+
+    public void ackNumber(short ackNumber) {
+        this.ackNumber = ackNumber;
     }
 
     public void systemMessage(int systemMessage) {
-        this.systemMessage = systemMessage;
+        this.sequenceNumber = (short) (systemMessage >> 16);
+        this.ackNumber = (short) (systemMessage & 0x0000ffff);
+    }
+
+    public int systemMessage() {
+        return (sequenceNumber << 16) | ackNumber;
     }
 }
