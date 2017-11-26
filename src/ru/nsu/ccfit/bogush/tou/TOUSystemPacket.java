@@ -26,7 +26,7 @@ public class TOUSystemPacket {
     }
 
     public TOUSystemPacket() {
-        this(TCPPacketType.ORDINARY);
+        this(DEFAULT_TYPE);
     }
 
     public TOUSystemPacket(TCPPacketType type) {
