@@ -13,6 +13,19 @@ public class TOUSystemPacket {
     private short sequenceNumber;
     private short ackNumber;
 
+    public TOUSystemPacket(TOUSystemPacket other) {
+        this.type = other.type;
+        this.sourceAddress = other.sourceAddress;
+        this.sourcePort = other.sourcePort;
+        this.destinationAddress = other.destinationAddress;
+        this.destinationPort = other.destinationPort;
+        this.sequenceNumber = other.sequenceNumber;
+        this.ackNumber = other.ackNumber;
+    }
+
+    public TOUSystemPacket(TCPPacketType type) {
+        this.type = type;
+    }
 
     public TOUSystemPacket(TCPPacketType type,
                            InetAddress sourceAddress, int sourcePort,
@@ -102,5 +115,34 @@ public class TOUSystemPacket {
 
     public int systemMessage() {
         return (sequenceNumber << 16) | ackNumber;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        TOUSystemPacket that = (TOUSystemPacket) o;
+
+        if (sourcePort != that.sourcePort) return false;
+        if (destinationPort != that.destinationPort) return false;
+        if (sequenceNumber != that.sequenceNumber) return false;
+        if (ackNumber != that.ackNumber) return false;
+        if (type != that.type) return false;
+        if (sourceAddress != null ? !sourceAddress.equals(that.sourceAddress) : that.sourceAddress != null)
+            return false;
+        return destinationAddress != null ? destinationAddress.equals(that.destinationAddress) : that.destinationAddress == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = type != null ? type.hashCode() : 0;
+        result = 31 * result + (sourceAddress != null ? sourceAddress.hashCode() : 0);
+        result = 31 * result + sourcePort;
+        result = 31 * result + (destinationAddress != null ? destinationAddress.hashCode() : 0);
+        result = 31 * result + destinationPort;
+        result = 31 * result + (int) sequenceNumber;
+        result = 31 * result + (int) ackNumber;
+        return result;
     }
 }
