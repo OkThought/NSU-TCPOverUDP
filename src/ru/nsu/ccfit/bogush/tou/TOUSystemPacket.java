@@ -17,6 +17,19 @@ public class TOUSystemPacket {
     public TOUSystemPacket(TCPPacketType type,
                            InetAddress sourceAddress, int sourcePort,
                            InetAddress destinationAddress, int destinationPort,
+                           short sequenceNumber, short ackNumber) {
+        this.type = type;
+        this.sourceAddress = sourceAddress;
+        this.sourcePort = sourcePort;
+        this.destinationAddress = destinationAddress;
+        this.destinationPort = destinationPort;
+        this.sequenceNumber = sequenceNumber;
+        this.ackNumber = ackNumber;
+    }
+
+    public TOUSystemPacket(TCPPacketType type,
+                           InetAddress sourceAddress, int sourcePort,
+                           InetAddress destinationAddress, int destinationPort,
                            int systemMessage) {
         this.type = type;
         this.sourceAddress = sourceAddress;
