@@ -15,7 +15,9 @@ public class TOUServerSocket {
     private final TOUConnectionManager connectionManager = new TOUConnectionManager();
     private DatagramSocket socket;
 
-    public TOUServerSocket() {}
+    public TOUServerSocket() throws IOException {
+        this(0);
+    }
 
     public TOUServerSocket(int port) throws IOException {
         bind(new InetSocketAddress(port));
