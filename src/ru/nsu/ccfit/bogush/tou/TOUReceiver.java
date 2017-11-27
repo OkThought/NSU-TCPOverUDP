@@ -19,7 +19,7 @@ class TOUReceiver extends Thread {
 
     private volatile boolean ignoreDataPackets = true;
 
-    private final BlockingHashMap<Short, byte[]> dataMap = new BlockingHashMap<>();
+    private final BlockingHashMap<TOUSystemPacket, byte[]> dataMap = new BlockingHashMap<>();
     private final BlockingHashMap<TOUSystemPacket, TOUSystemPacket> systemPacketMap = new BlockingHashMap<>();
 
 
@@ -36,7 +36,11 @@ class TOUReceiver extends Thread {
                 TCPPacket tcpPacket = TOUPacketFactory.decapsulateTCP(packet);
 
                 if (!ignoreDataPackets && tcpPacket.data().length > 0) {
-                    dataMap.put(tcpPacket.sequenceNumber(), tcpPacket.data());
+                    TOUSystemPacket key = new TOUSystemPacket();
+                    key.sourceAddress(packet.getAddress());
+                    key.sourcePort(tcpPacket.sourcePort());
+                    key.sequenceNumber(tcpPacket.sequenceNumber());
+                    dataMap.put(key, tcpPacket.data());
                 }
 
                 TCPPacketType packetType = TCPPacketType.typeOf(tcpPacket);
@@ -88,8 +92,12 @@ class TOUReceiver extends Thread {
         ignoreDataPackets = newValue;
     }
 
-    byte[] takeDataBySequenceNumber(short sequenceNumber) throws InterruptedException {
-        return dataMap.take(sequenceNumber);
+    byte[] takeData(InetAddress sourceAddress, int sourcePort, short sequenceNumber) throws InterruptedException {
+        TOUSystemPacket key = new TOUSystemPacket();
+        key.sourceAddress(sourceAddress);
+        key.sourcePort(sourcePort);
+        key.sequenceNumber(sequenceNumber);
+        return dataMap.take(key);
     }
 
     TOUSystemPacket receiveSystemPacket(TOUSystemPacket systemPacketKey) throws InterruptedException {
