@@ -76,12 +76,6 @@ class TOUSender extends Thread {
     }
 
     void putInQueue(TOUSystemPacket systemPacket) throws InterruptedException {
-//        for (TOUPacket dataPacket: dataPackets) {
-//            if (TOUPacketFactory.canMerge(dataPacket, systemPacket)) {
-//                TOUPacketFactory.mergeSystemPacket(dataPacket, systemPacket);
-//                return;
-//            }
-//        }
         systemPackets.put(systemPacket);
     }
 
