@@ -51,7 +51,7 @@ public class TOUSocket {
     }
 
     public InputStream getInputStream () throws IOException {
-        return new TOUSocketInputStream(connectionManager.receiver());
+        return new TOUSocketInputStream(connectionManager.receiver(), socket.getInetAddress(), socket.getPort());
     }
 
 
