@@ -14,7 +14,7 @@ public class TOUSocket {
     static {
         InitLog4J.initIfNotInitYet();
     }
-    private static final Logger logger = LogManager.getLogger("ServerSocket");
+    private static final Logger logger = LogManager.getLogger("Socket");
 
     static final int MAX_DATA_SIZE = 1024; // bytes
     static final int MAX_PACKET_SIZE = MAX_DATA_SIZE + TCPPacket.HEADER_SIZE;
