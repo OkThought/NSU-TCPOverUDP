@@ -7,13 +7,13 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 
-class TOUSocketOutputStream extends OutputStream {
+class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
     private final TOUSender sender;
     private final InetAddress sourceAddress;
     private final int sourcePort;
     private final InetAddress destinationAddress;
     private final int destinationPort;
-    private ByteBuffer buffer;
+    private final ByteBuffer buffer;
 
     public TOUSocketOutputStream(TOUSender sender,
                                  InetAddress sourceAddress, int sourcePort,
@@ -26,22 +26,47 @@ class TOUSocketOutputStream extends OutputStream {
         this.destinationAddress = destinationAddress;
         this.destinationPort = destinationPort;
         this.buffer = ByteBuffer.allocate(bufferSize);
+        sender.addBufferHolder(this);
     }
 
     @Override
     public void write(int b) throws IOException {
         try {
-            buffer.put((byte) b);
-            if (buffer.remaining() == 0) {
-                TCPPacket tcpPacket = new TCPPacket();
-                tcpPacket.data(buffer.array());
-                tcpPacket.sourcePort(sourcePort);
-                tcpPacket.destinationPort(destinationPort);
-                sender.putInQueue(new TOUPacket(tcpPacket, sourceAddress, destinationAddress));
-                buffer.reset();
+            synchronized (buffer) {
+                buffer.put((byte) b);
+                if (buffer.remaining() == 0) {
+                    sender.putInQueue(wrap(buffer.array().clone()));
+                    buffer.reset();
+                }
             }
         } catch (InterruptedException e) {
             throw new IOException(e);
         }
+    }
+
+    private TOUPacket wrap(byte[] data) {
+        TCPPacket tcpPacket = new TCPPacket();
+        tcpPacket.data(data);
+        tcpPacket.sourcePort(sourcePort);
+        tcpPacket.destinationPort(destinationPort);
+        return new TOUPacket(tcpPacket, sourceAddress, destinationAddress);
+    }
+
+    @Override
+    public int available() {
+        synchronized (buffer) {
+            return buffer.position() + 1;
+        }
+    }
+
+    @Override
+    public TOUPacket flushIntoPacket() {
+        byte[] data;
+        synchronized (buffer) {
+            int size = buffer.position() + 1;
+            data = new byte[size];
+            System.arraycopy(buffer.array(), 0, data, 0, size);
+        }
+        return wrap(data);
     }
 }
