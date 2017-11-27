@@ -39,7 +39,7 @@ import static ru.nsu.ccfit.bogush.tou.TOUConnectionState.*;
  */
 class TOUConnectionManager {
     static {
-        InitLog4J.initIfNotInitYet();
+        TOULog4JUtils.initIfNotInitYet();
     }
     private static final Logger LOGGER = LogManager.getLogger("ConnectionManager");
 

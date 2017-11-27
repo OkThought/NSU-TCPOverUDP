@@ -12,7 +12,7 @@ import java.net.*;
 
 public class TOUSocket {
     static {
-        InitLog4J.initIfNotInitYet();
+        TOULog4JUtils.initIfNotInitYet();
     }
     private static final Logger logger = LogManager.getLogger("Socket");
 
@@ -33,8 +33,7 @@ public class TOUSocket {
     }
 
     public TOUSocket(SocketAddress socketAddress) throws SocketException {
-        logger.traceEntry("address: {} port: {}", ((InetSocketAddress) socketAddress)::getAddress,
-                ((InetSocketAddress) socketAddress)::getPort);
+        logger.traceEntry(() -> TOULog4JUtils.toString(socketAddress));
 
         socket = new DatagramSocket(socketAddress);
         connectionManager.bind(socket);

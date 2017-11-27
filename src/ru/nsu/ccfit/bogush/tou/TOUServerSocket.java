@@ -15,7 +15,7 @@ import static ru.nsu.ccfit.bogush.tou.TOUSocket.TIMEOUT;
 
 public class TOUServerSocket {
     static {
-        InitLog4J.initIfNotInitYet();
+        TOULog4JUtils.initIfNotInitYet();
     }
     private static final Logger logger = LogManager.getLogger("ServerSocket");
 
@@ -41,8 +41,7 @@ public class TOUServerSocket {
     }
 
     public void bind(SocketAddress socketAddress) throws IOException {
-        logger.traceEntry("address: {} port: {}", ((InetSocketAddress) socketAddress)::getAddress,
-                ((InetSocketAddress) socketAddress)::getPort);
+        logger.traceEntry(() -> TOULog4JUtils.toString(socketAddress));
 
         checkBound(false);
         socket = new DatagramSocket(socketAddress);
