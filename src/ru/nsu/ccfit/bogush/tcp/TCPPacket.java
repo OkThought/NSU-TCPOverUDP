@@ -10,8 +10,7 @@ public class TCPPacket {
     private static final int SEQUENCE_NUMBER_POSITION       = DATA_OFFSET_POSITION + 2;
     private static final int ACK_NUMBER_POSITION            = SEQUENCE_NUMBER_POSITION + 2;
     private static final int FLAGS_POSITION                 = ACK_NUMBER_POSITION + 2;
-    private static final int ID_POSITION                    = FLAGS_POSITION + 1;
-    private static final int DATA_OFFSET_MIN                = ID_POSITION + 16;
+    private static final int DATA_OFFSET_MIN                = FLAGS_POSITION + 1;
 
     public static final byte ACK_BITMAP = (byte) 0b10000000;
     public static final byte SYN_BITMAP = (byte) 0b01000000;
