@@ -9,9 +9,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 class TOUSender extends Thread {
-    private DatagramSocket udpSocket;
-    private BlockingQueue<TOUPacket> dataPackets;
-    private BlockingQueue<TOUSystemPacket> systemPackets;
+    private final DatagramSocket udpSocket;
+    private final BlockingQueue<TOUPacket> dataPackets;
+    private final BlockingQueue<TOUSystemPacket> systemPackets;
 
     TOUSender(DatagramSocket udpSocket, int queueCapacity) throws IOException {
         this.udpSocket = udpSocket;
@@ -25,9 +25,12 @@ class TOUSender extends Thread {
             while (!Thread.interrupted()) {
                 DatagramPacket udpPacket;
                 if (systemPackets.isEmpty()) {
-                    TOUPacket dataPacket = dataPackets.take();
+                    TOUPacket dataPacket;
+                    synchronized (dataPackets) {
+                        dataPacket = dataPackets.take();
+                        dataPackets.put(dataPacket);
+                    }
                     udpPacket = TOUPacketFactory.encapsulateIntoUDP(dataPacket);
-                    dataPackets.put(dataPacket);
                 } else {
                     TOUSystemPacket systemPacket = systemPackets.take();
                     udpPacket = prepareSystemPacketForSending(systemPacket);
