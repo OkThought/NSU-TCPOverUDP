@@ -36,26 +36,43 @@ import static ru.nsu.ccfit.bogush.tou.TOUConnectionState.*;
  *      and sequence number set to A+1
  */
 class TOUConnectionManager {
-    private final DatagramSocket datagramSocket;
-    private final TOUSender sender;
-    private final TOUReceiver receiver;
+    private DatagramSocket datagramSocket;
+    private TOUSender sender;
+    private TOUReceiver receiver;
     private volatile TOUConnectionState state = CLOSED;
 
-    TOUConnectionManager(DatagramSocket datagramSocket, TOUSender sender, TOUReceiver receiver) {
-        this.datagramSocket = datagramSocket;
+    TOUConnectionManager() {}
+
+    void sender(TOUSender sender) {
         this.sender = sender;
+    }
+
+    TOUSender sender() {
+        return sender;
+    }
+
+    void receiver(TOUReceiver receiver) {
         this.receiver = receiver;
     }
 
-    public void bind(int port) {
+    TOUReceiver receiver() {
+        return receiver;
+    }
+
+    void bind(DatagramSocket datagramSocket) {
         checkState(CLOSED);
+        this.datagramSocket = datagramSocket;
+        state = BOUND;
+    }
+
+    void listen() {
+        checkState(BOUND);
         state = LISTEN;
     }
 
     void connect(InetAddress serverAddress, int serverPort)
             throws InterruptedException, IOException, TCPUnknownPacketTypeException {
-        checkState(CLOSED);
-        startThreadsIfNotAlive();
+        checkState(BOUND);
         datagramSocket.connect(serverAddress, serverPort);
 
         TOUSystemPacket synack = sendSynOrFin(SYN,
