@@ -19,6 +19,7 @@ class TOUSocketOutputStream extends OutputStream {
                                  InetAddress sourceAddress, int sourcePort,
                                  InetAddress destinationAddress, int destinationPort,
                                  int bufferSize) {
+        if (bufferSize <= 0) throw new IllegalArgumentException("bufferSize <= 0");
         this.sender = sender;
         this.sourceAddress = sourceAddress;
         this.sourcePort = sourcePort;
@@ -30,6 +31,7 @@ class TOUSocketOutputStream extends OutputStream {
     @Override
     public void write(int b) throws IOException {
         try {
+            buffer.put((byte) b);
             if (buffer.remaining() == 0) {
                 TCPPacket tcpPacket = new TCPPacket();
                 tcpPacket.data(buffer.array());
@@ -37,8 +39,6 @@ class TOUSocketOutputStream extends OutputStream {
                 tcpPacket.destinationPort(destinationPort);
                 sender.putInQueue(new TOUPacket(tcpPacket, sourceAddress, destinationAddress));
                 buffer.reset();
-            } else {
-                buffer.put((byte) b);
             }
         } catch (InterruptedException e) {
             throw new IOException(e);
