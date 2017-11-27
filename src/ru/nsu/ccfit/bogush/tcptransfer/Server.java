@@ -28,7 +28,7 @@ public class Server extends Thread {
 				fileReceiver.addStopListener(speedTester);
 				speedTester.start();
 			}
-		} catch (IOException | InterruptedException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
