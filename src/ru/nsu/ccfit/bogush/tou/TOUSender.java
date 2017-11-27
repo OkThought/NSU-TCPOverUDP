@@ -10,18 +10,21 @@ import java.util.Comparator;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 class TOUSender extends Thread {
     private final DatagramSocket udpSocket;
     private final BlockingQueue<TOUPacket> dataPackets;
     private final BlockingQueue<TOUSystemPacket> systemPackets;
     private final ArrayList<TOUBufferHolder> bufferHolders;
+    private final int timeout;
 
-    TOUSender(DatagramSocket udpSocket, int queueCapacity) throws IOException {
+    TOUSender(DatagramSocket udpSocket, int queueCapacity, int timeout) throws IOException {
         this.udpSocket = udpSocket;
         dataPackets = new ArrayBlockingQueue<>(queueCapacity);
         systemPackets = new ArrayBlockingQueue<>(queueCapacity);
         bufferHolders = new ArrayList<>();
+        this.timeout = timeout;
     }
 
     @Override
@@ -94,7 +97,8 @@ class TOUSender extends Thread {
                 dataPacket = dataPacketOptional.get();
                 dataPackets.put(dataPacket);
             } else {
-                dataPacket = dataPackets.take();
+                dataPacket = dataPackets.poll(timeout, TimeUnit.MILLISECONDS);
+                if (dataPacket == null) return;
                 dataPackets.put(dataPacket);
             }
         }
@@ -109,7 +113,8 @@ class TOUSender extends Thread {
     private void sendSystemPacket() throws InterruptedException, IOException {
         TOUSystemPacket systemPacket;
         synchronized (systemPackets) {
-            systemPacket = systemPackets.take();
+            systemPacket = systemPackets.poll(timeout, TimeUnit.MILLISECONDS);
+            if (systemPacket == null) return;
             systemPackets.put(systemPacket);
         }
         send(systemPacket);
