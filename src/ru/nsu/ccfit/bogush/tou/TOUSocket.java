@@ -56,7 +56,9 @@ public class TOUSocket {
 
 
     public OutputStream getOutputStream () throws IOException {
-        return new TOUSocketOutputStream(connectionManager.sender());
+        return new TOUSocketOutputStream(connectionManager.sender(),
+                socket.getLocalAddress(), socket.getLocalPort(),
+                socket.getInetAddress(), socket.getPort(), MAX_DATA_SIZE);
     }
 
     public void close () throws IOException {
