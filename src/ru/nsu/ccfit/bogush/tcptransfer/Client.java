@@ -16,6 +16,7 @@ class Client extends Thread {
 	private OutputStream out;
 
 	private Client(InetAddress address, int serverPort, String filename) throws IOException {
+		super(Client.class.getName());
 		this.filename = filename;
 		socket = new TOUSocket(address, serverPort);
 	}

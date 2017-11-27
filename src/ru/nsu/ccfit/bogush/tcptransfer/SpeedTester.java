@@ -11,6 +11,7 @@ public class SpeedTester extends Thread implements StopListener {
 	private SizeObserver sizeObserver;
 
 	public SpeedTester(SizeObserver sizeObserver, long period) {
+		super(SpeedTester.class.getName());
 		this.sizeObserver = sizeObserver;
 		this.period = period;
 	}

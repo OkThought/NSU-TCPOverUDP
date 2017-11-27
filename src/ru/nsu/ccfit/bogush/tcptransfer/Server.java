@@ -9,6 +9,7 @@ public class Server extends Thread {
 	private TOUServerSocket socket;
 
 	public Server(int port) throws IOException {
+		super(Server.class.getName());
 		socket = new TOUServerSocket(port);
 	}
 
