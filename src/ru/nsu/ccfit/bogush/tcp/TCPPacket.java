@@ -95,16 +95,16 @@ public class TCPPacket {
         return bb.getShort(DATA_OFFSET_POSITION);
     }
 
-    public void sourcePort(short sourcePort) {
-        bb.putShort(SOURCE_PORT_POSITION, sourcePort);
+    public void sourcePort(int sourcePort) {
+        bb.putShort(SOURCE_PORT_POSITION, (short) sourcePort);
     }
 
     public short sourcePort() {
         return bb.getShort(SOURCE_PORT_POSITION);
     }
 
-    public void destinationPort(short destinationPort) {
-        bb.putShort(DESTINATION_PORT_POSITION, destinationPort);
+    public void destinationPort(int destinationPort) {
+        bb.putShort(DESTINATION_PORT_POSITION, (short) destinationPort);
     }
 
     public short destinationPort() {
