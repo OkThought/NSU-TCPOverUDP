@@ -28,5 +28,6 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="org.apache.logging.log4j:log4j-core:Release" level="project" />
   </component>
 </module>
