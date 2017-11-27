@@ -2,6 +2,8 @@ package ru.nsu.ccfit.bogush.tou;
 
 
 public enum TOUConnectionState {
+    BOUND,
+
     /**
      * (server) represents waiting for a connection request from any
      * remote TCP and port.
