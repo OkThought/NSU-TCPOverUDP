@@ -7,6 +7,10 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
+import static ru.nsu.ccfit.bogush.tou.TOUSocket.MAX_PACKET_SIZE;
+import static ru.nsu.ccfit.bogush.tou.TOUSocket.QUEUE_CAPACITY;
+import static ru.nsu.ccfit.bogush.tou.TOUSocket.TIMEOUT;
+
 public class TOUServerSocket {
     private final TOUConnectionManager connectionManager = new TOUConnectionManager();
     private DatagramSocket socket;
@@ -25,6 +29,8 @@ public class TOUServerSocket {
         checkBound(false);
         socket = new DatagramSocket(socketAddress);
         connectionManager.bind(socket);
+        connectionManager.sender(new TOUSender(socket, QUEUE_CAPACITY, TIMEOUT));
+        connectionManager.receiver(new TOUReceiver(socket, MAX_PACKET_SIZE));
         connectionManager.listen();
     }
 
@@ -38,6 +44,6 @@ public class TOUServerSocket {
     }
 
     private void checkBound(boolean bound) throws IOException {
-        if (isBound() == bound) throw new IOException("Socket is " + (isBound() ? "" : "not ") + "bound");
+        if (isBound() != bound) throw new IOException("Socket is " + (isBound() ? "" : "not ") + "bound");
     }
 }
