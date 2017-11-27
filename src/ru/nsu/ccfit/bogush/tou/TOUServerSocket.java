@@ -69,7 +69,9 @@ public class TOUServerSocket {
     private void checkBound(boolean shouldBeBound) throws IOException {
         logger.traceEntry(String.valueOf(shouldBeBound));
 
-        if (isBound() != shouldBeBound) throw new IOException("Socket is " + (isBound() ? "" : "not ") + "bound");
+        if (isBound() != shouldBeBound) {
+            throw logger.throwing(new IOException("Socket is " + (isBound() ? "" : "not ") + "bound"));
+        }
 
         logger.traceExit();
     }
