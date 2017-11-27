@@ -12,9 +12,10 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 public class TOUSocket {
-    private static final int MAX_DATA_SIZE = 1024; // bytes
-    private static final int MAX_PACKET_SIZE = MAX_DATA_SIZE + TCPPacket.HEADER_SIZE;
-    private static final int QUEUE_CAPACITY = 512;
+    static final int MAX_DATA_SIZE = 1024; // bytes
+    static final int MAX_PACKET_SIZE = MAX_DATA_SIZE + TCPPacket.HEADER_SIZE;
+    static final int QUEUE_CAPACITY = 512;
+    static final int TIMEOUT = 10;
     private final TOUConnectionManager connectionManager = new TOUConnectionManager();
     private DatagramSocket socket;
 
@@ -23,7 +24,7 @@ public class TOUSocket {
     }
 
     public TOUSocket (InetAddress address, int port) throws IOException {
-        socket = new DatagramSocket();
+        socket = new DatagramSocket(0, InetAddress.getLocalHost());
         connectionManager.bind(socket);
         connect(address, port);
     }
@@ -41,7 +42,7 @@ public class TOUSocket {
 
     public void connect (InetAddress address, int port) throws IOException {
         checkBound(false);
-        connectionManager.sender(new TOUSender(socket, QUEUE_CAPACITY));
+        connectionManager.sender(new TOUSender(socket, QUEUE_CAPACITY, TIMEOUT));
         connectionManager.receiver(new TOUReceiver(socket, MAX_PACKET_SIZE));
         try {
             connectionManager.connect(address, port);
