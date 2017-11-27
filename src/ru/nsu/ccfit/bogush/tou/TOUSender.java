@@ -23,9 +23,11 @@ class TOUSender extends Thread {
     public void run() {
         try {
             while (!Thread.interrupted()) {
-                if (!systemPackets.isEmpty()) {
-                    boolean merged = tryToMergeWithAnyDataPacket(systemPackets.peek());
-                    if (!merged) {
+                while (!systemPackets.isEmpty()) {
+                    TOUPacket dataPacket = tryToMergeWithAnyDataPacket(systemPackets.peek());
+                    if (dataPacket != null) {
+                        send(dataPacket);
+                    } else {
                         sendSystemPacket();
                     }
                 }
@@ -42,8 +44,7 @@ class TOUSender extends Thread {
             dataPacket = dataPackets.take();
             dataPackets.put(dataPacket);
         }
-        DatagramPacket udpPacket = TOUPacketFactory.encapsulateIntoUDP(dataPacket);
-        udpSocket.send(udpPacket);
+        send(dataPacket);
     }
 
     private void sendSystemPacket() throws InterruptedException, IOException {
@@ -52,18 +53,31 @@ class TOUSender extends Thread {
             systemPacket = systemPackets.take();
             systemPackets.put(systemPacket);
         }
+        send(systemPacket);
+    }
+
+    private void send(TOUSystemPacket systemPacket) throws IOException {
         DatagramPacket udpPacket = TOUPacketFactory.encapsulateIntoUDP(systemPacket);
         udpSocket.send(udpPacket);
     }
 
-    private boolean tryToMergeWithAnyDataPacket(TOUSystemPacket systemPacket) {
+    private void send(TOUPacket dataPacket) throws IOException {
+        DatagramPacket udpPacket = TOUPacketFactory.encapsulateIntoUDP(dataPacket);
+        udpSocket.send(udpPacket);
+    }
+
+    private TOUPacket tryToMergeWithAnyDataPacket(TOUSystemPacket systemPacket) throws InterruptedException {
         for (TOUPacket dataPacket: dataPackets) {
             if (TOUPacketFactory.canMerge(dataPacket, systemPacket)) {
                 TOUPacketFactory.mergeSystemPacket(dataPacket, systemPacket);
-                return true;
+                synchronized (dataPackets) {
+                    dataPackets.remove(dataPacket);
+                    dataPackets.put(dataPacket);
+                }
+                return dataPacket;
             }
         }
-        return false;
+        return null;
     }
 
     void sendOnce(TOUPacket packet) throws IOException {
