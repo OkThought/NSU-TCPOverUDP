@@ -23,40 +23,40 @@ class TOUSender extends Thread {
     public void run() {
         try {
             while (!Thread.interrupted()) {
-                DatagramPacket udpPacket;
-                if (systemPackets.isEmpty()) {
-                    TOUPacket dataPacket;
-                    synchronized (dataPackets) {
-                        dataPacket = dataPackets.take();
-                        dataPackets.put(dataPacket);
+                if (!systemPackets.isEmpty()) {
+                    boolean merged = tryToMergeWithAnyDataPacket(systemPackets.peek());
+                    if (!merged) {
+                        sendSystemPacket();
                     }
-                    udpPacket = TOUPacketFactory.encapsulateIntoUDP(dataPacket);
-                } else {
-                    TOUSystemPacket systemPacket = systemPackets.take();
-                    udpPacket = prepareSystemPacketForSending(systemPacket);
                 }
-                udpSocket.send(udpPacket);
+                sendDataPacket();
             }
         } catch (InterruptedException | IOException e) {
             e.printStackTrace();
         }
     }
 
-    DatagramPacket prepareSystemPacketForSending(TOUSystemPacket systemPacket) throws InterruptedException {
-        for (TOUPacket dataPacket: dataPackets) {
-            if (TOUPacketFactory.canMerge(dataPacket, systemPacket)) {
-                TOUPacketFactory.mergeSystemPacket(dataPacket, systemPacket);
-//                dataPackets.removeFromQueue(dataPacket);
-                return TOUPacketFactory.encapsulateIntoUDP(dataPacket);
-            }
+    private void sendDataPacket() throws IOException, InterruptedException {
+        TOUPacket dataPacket;
+        synchronized (dataPackets) {
+            dataPacket = dataPackets.take();
+            dataPackets.put(dataPacket);
         }
-        // couldn't merge -> put back into queue
-        systemPackets.put(systemPacket);
-
-        return TOUPacketFactory.encapsulateIntoUDP(systemPacket);
+        DatagramPacket udpPacket = TOUPacketFactory.encapsulateIntoUDP(dataPacket);
+        udpSocket.send(udpPacket);
     }
 
-    boolean tryToMergeWithAnyDataPacket(TOUSystemPacket systemPacket) {
+    private void sendSystemPacket() throws InterruptedException, IOException {
+        TOUSystemPacket systemPacket;
+        synchronized (systemPackets) {
+            systemPacket = systemPackets.take();
+            systemPackets.put(systemPacket);
+        }
+        DatagramPacket udpPacket = TOUPacketFactory.encapsulateIntoUDP(systemPacket);
+        udpSocket.send(udpPacket);
+    }
+
+    private boolean tryToMergeWithAnyDataPacket(TOUSystemPacket systemPacket) {
         for (TOUPacket dataPacket: dataPackets) {
             if (TOUPacketFactory.canMerge(dataPacket, systemPacket)) {
                 TOUPacketFactory.mergeSystemPacket(dataPacket, systemPacket);
