@@ -4,23 +4,40 @@ import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 
 import java.io.IOException;
 import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 public class TOUServerSocket {
-    private final TOUImpl impl;
-    private int port;
+    private final TOUConnectionManager connectionManager = new TOUConnectionManager();
+    private DatagramSocket socket;
 
-    public TOUServerSocket (int port) throws IOException {
-        this.port = port;
-        DatagramSocket socket = new DatagramSocket(port);
-        impl = new TOUImpl(socket);
-        impl.bind(port);
+    public TOUServerSocket() {}
+
+    public TOUServerSocket(int port) throws IOException {
+        bind(new InetSocketAddress(port));
     }
 
-    public TOUSocket accept () throws IOException, InterruptedException {
+    public boolean isBound() {
+        return socket != null;
+    }
+
+    public void bind(SocketAddress socketAddress) throws IOException {
+        checkBound(false);
+        socket = new DatagramSocket(socketAddress);
+        connectionManager.bind(socket);
+        connectionManager.listen();
+    }
+
+    public TOUSocket accept() throws IOException {
+        checkBound(true);
         try {
-            return impl.accept();
-        } catch (TCPUnknownPacketTypeException e) {
+            return connectionManager.accept();
+        } catch (TCPUnknownPacketTypeException | InterruptedException e) {
             throw new IOException(e);
         }
+    }
+
+    private void checkBound(boolean bound) throws IOException {
+        if (isBound() == bound) throw new IOException("Socket is " + (isBound() ? "" : "not ") + "bound");
     }
 }
