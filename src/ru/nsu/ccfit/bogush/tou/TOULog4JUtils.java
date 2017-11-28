@@ -24,8 +24,12 @@ public class TOULog4JUtils {
     }
 
     public static String toString(SocketAddress socketAddress) {
-        return String.format("address: %s port: %s",
+        return String.format("%s:%s",
                 ((InetSocketAddress) socketAddress).getAddress(),
                 ((InetSocketAddress) socketAddress).getPort());
+    }
+
+    public static Object toString(DatagramPacket packet) {
+        return String.format("udp packet <%s:%s>", packet.getAddress(), packet.getPort());
     }
 }
