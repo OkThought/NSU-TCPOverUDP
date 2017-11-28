@@ -139,7 +139,7 @@ class TOUSender extends Thread {
 
         TOUPacket dataPacket;
         dataPacket = dataPackets.poll(timeout, TimeUnit.MILLISECONDS);
-        LOGGER.debug("polled {}", dataPacket);
+        if (dataPacket != null) LOGGER.debug("polled {}", dataPacket);
 
         if (dataPacket == null) {
             dataPacket = flushBiggestAvailableBuffer();
@@ -166,7 +166,7 @@ class TOUSender extends Thread {
 
         while (true) {
             TOUSystemPacket systemPacket = systemPackets.poll(timeout, TimeUnit.MILLISECONDS);
-            LOGGER.debug("polled {}", systemPacket);
+            if (systemPacket != null) LOGGER.debug("polled {}", systemPacket);
             if (systemPacket == null) break;
 
             TOUPacket dataPacket = tryToMergeWithAnyDataPacket(systemPacket);
