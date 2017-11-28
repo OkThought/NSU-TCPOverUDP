@@ -184,7 +184,9 @@ class TOUSender extends Thread {
         LOGGER.traceEntry(()->systemPacket);
 
         DatagramPacket udpPacket = TOUPacketFactory.encapsulateIntoUDP(systemPacket);
+        LOGGER.trace("waiting to socket.send({})", ()->TOULog4JUtils.toString(udpPacket));
         udpSocket.send(udpPacket);
+        LOGGER.debug("sent {}", ()->TOULog4JUtils.toString(udpPacket));
 
         LOGGER.traceExit();
     }

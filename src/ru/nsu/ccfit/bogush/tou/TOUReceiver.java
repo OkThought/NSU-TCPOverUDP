@@ -45,7 +45,9 @@ class TOUReceiver extends Thread {
 
         try {
             while (!Thread.interrupted()) {
+                LOGGER.trace("waiting to socket.receive");
                 socket.receive(packet);
+                LOGGER.debug("received {}", ()->TOULog4JUtils.toString(packet));
                 TCPPacket tcpPacket = TOUPacketFactory.decapsulateTCP(packet);
 
                 if (!ignoreDataPackets && tcpPacket.data().length > 0) {
