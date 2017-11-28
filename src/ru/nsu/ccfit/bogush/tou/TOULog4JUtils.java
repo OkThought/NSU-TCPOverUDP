@@ -19,7 +19,7 @@ public class TOULog4JUtils {
     }
 
     public static String toString(DatagramSocket socket) {
-        return String.format("udp socket on %s:%s connected to %s:%s",
+        return String.format("udp socket <%s:%s, %s:%s>",
                 socket.getLocalAddress(), socket.getLocalPort(), socket.getInetAddress(), socket.getPort());
     }
 
