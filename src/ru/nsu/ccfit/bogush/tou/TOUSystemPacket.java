@@ -155,4 +155,15 @@ public class TOUSystemPacket {
         result = 31 * result + (int) ackNumber;
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "TOUSystemPacket <" +
+                "type: " + type +
+                " source: " + sourceAddress + ":" + sourcePort +
+                " destination: " + destinationAddress + ":" + destinationPort +
+                " sequence: " + sequenceNumber +
+                " ack: " + ackNumber +
+                '>';
+    }
 }
