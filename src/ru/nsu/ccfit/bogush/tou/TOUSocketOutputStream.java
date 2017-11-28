@@ -36,7 +36,7 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
                 buffer.put((byte) b);
                 if (buffer.remaining() == 0) {
                     sender.putInQueue(wrap(buffer.array().clone()));
-                    buffer.reset();
+                    buffer.position(0);
                 }
             }
         } catch (InterruptedException e) {
@@ -45,7 +45,7 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
     }
 
     private TOUPacket wrap(byte[] data) {
-        TCPPacket tcpPacket = new TCPPacket();
+        TCPPacket tcpPacket = new TCPPacket(data.length);
         tcpPacket.data(data);
         tcpPacket.sourcePort(sourcePort);
         tcpPacket.destinationPort(destinationPort);
