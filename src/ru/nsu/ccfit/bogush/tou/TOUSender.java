@@ -146,6 +146,6 @@ class TOUSender extends Thread {
 
     @Override
     public String toString() {
-        return "TOUSender <" + udpSocket + '>';
+        return "TOUSender <" + TOULog4JUtils.toString(udpSocket) + '>';
     }
 }
