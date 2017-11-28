@@ -255,8 +255,8 @@ class TOUConnectionManager {
     }
 
     private static void swapSourceAndDestination(TCPPacket packet) {
-        short dstPort = packet.sourcePort();
-        short srcPort = packet.destinationPort();
+        int dstPort = packet.sourcePort();
+        int srcPort = packet.destinationPort();
         packet.destinationPort(dstPort);
         packet.sourcePort(srcPort);
     }

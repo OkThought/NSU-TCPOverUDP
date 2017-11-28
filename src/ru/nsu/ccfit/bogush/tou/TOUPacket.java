@@ -79,7 +79,7 @@ class TOUPacket {
         tcpPacket.sourcePort(sourcePort);
     }
 
-    short sourcePort() {
+    int sourcePort() {
         return tcpPacket.sourcePort();
     }
 
@@ -95,7 +95,7 @@ class TOUPacket {
         tcpPacket.destinationPort(destinationPort);
     }
 
-    short destinationPort() {
+    int destinationPort() {
         return tcpPacket.destinationPort();
     }
 

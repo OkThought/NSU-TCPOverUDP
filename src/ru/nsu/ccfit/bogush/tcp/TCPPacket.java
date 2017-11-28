@@ -98,16 +98,16 @@ public class TCPPacket {
         bb.putShort(SOURCE_PORT_POSITION, (short) sourcePort);
     }
 
-    public short sourcePort() {
-        return bb.getShort(SOURCE_PORT_POSITION);
+    public int sourcePort() {
+        return unsignedShortToInt(bb.getShort(SOURCE_PORT_POSITION));
     }
 
     public void destinationPort(int destinationPort) {
         bb.putShort(DESTINATION_PORT_POSITION, (short) destinationPort);
     }
 
-    public short destinationPort() {
-        return bb.getShort(DESTINATION_PORT_POSITION);
+    public int destinationPort() {
+        return unsignedShortToInt(bb.getShort(DESTINATION_PORT_POSITION));
     }
 
     public void sequenceNumber(short sequenceNumber) {
@@ -140,6 +140,10 @@ public class TCPPacket {
 
     public int capacity() {
         return bytes.length - dataOffset();
+    }
+
+    private static int unsignedShortToInt(short value) {
+        return value & 0xffff;
     }
 
     private static byte setFlagActive (byte b, byte flag) {
