@@ -112,7 +112,7 @@ public class TOUSocket {
     private void checkBound(boolean shouldBeBound) throws IOException {
         LOGGER.traceEntry();
 
-        if (isBound() == shouldBeBound) {
+        if (isBound() != shouldBeBound) {
             throw LOGGER.throwing(new IOException("Socket is " + (isBound() ? "" : "not ") + "bound"));
         }
 
