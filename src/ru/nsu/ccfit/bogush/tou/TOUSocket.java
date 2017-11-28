@@ -122,7 +122,7 @@ public class TOUSocket {
     private void checkConnected(boolean shouldBeConnected) throws IOException {
         LOGGER.traceEntry();
 
-        if (isConnected() == shouldBeConnected) {
+        if (isConnected() != shouldBeConnected) {
             throw LOGGER.throwing(new IOException("Socket is " + (isConnected() ? "" : "not ") + "connected"));
         }
 
