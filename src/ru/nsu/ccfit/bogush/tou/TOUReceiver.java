@@ -96,6 +96,7 @@ class TOUReceiver extends Thread {
                 systemPacketMap.put(key, systemPacket);
             }
         } catch (IOException | TCPUnknownPacketTypeException e) {
+            LOGGER.catching(e);
             e.printStackTrace();
         }
 
