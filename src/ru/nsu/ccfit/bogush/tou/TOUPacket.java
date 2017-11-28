@@ -127,4 +127,12 @@ class TOUPacket {
         result = 31 * result + (destinationAddress != null ? destinationAddress.hashCode() : 0);
         return result;
     }
+
+    @Override
+    public String toString() {
+        return "TOUPacket <" + "tcpPacket: " + tcpPacket +
+                " source: " + sourceAddress +
+                " destination: " + destinationAddress +
+                '>';
+    }
 }
