@@ -115,6 +115,8 @@ class TOUConnectionManager {
         sendACK(synack);
         state = ESTABLISHED;
 
+        LOGGER.info("Successfully connected to {}:{}", serverAddress, serverPort);
+
         LOGGER.traceExit();
     }
 
@@ -130,6 +132,8 @@ class TOUConnectionManager {
 
         TOUSystemPacket ack = sendSynackOrFinack(SYNACK, syn, datagramSocket.getLocalPort());
         state = ESTABLISHED;
+
+        LOGGER.info("Successfully accepted connection from {}:{}", ack.sourceAddress(), ack.sourcePort());
 
         return LOGGER.traceExit(new TOUSocket(syn.sourceAddress(), syn.sourcePort()));
     }
@@ -273,14 +277,16 @@ class TOUConnectionManager {
         LOGGER.traceEntry("create {}", type);
 
         assert type == SYNACK || type == FINACK;
-        TOUSystemPacket synack = new TOUSystemPacket(synOrFin);
-        synack.sourceAddress(localAddress);
-        synack.sourcePort(localPort);
-        synack.type(type);
-        synack.ackNumber((short) (synOrFin.sequenceNumber() + 1));
-        synack.sequenceNumber(rand());
+        TOUSystemPacket synackOrFinack = new TOUSystemPacket(synOrFin);
+        synackOrFinack.sourceAddress(localAddress);
+        synackOrFinack.sourcePort(localPort);
+        synackOrFinack.destinationAddress(synOrFin.sourceAddress());
+        synackOrFinack.destinationPort(synOrFin.sourcePort());
+        synackOrFinack.type(type);
+        synackOrFinack.ackNumber((short) (synOrFin.sequenceNumber() + 1));
+        synackOrFinack.sequenceNumber(rand());
 
-        return LOGGER.traceExit(synack);
+        return LOGGER.traceExit(synackOrFinack);
     }
 
     private static TOUSystemPacket createACK(TOUSystemPacket synackOrFinack) {
