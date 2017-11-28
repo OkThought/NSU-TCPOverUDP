@@ -182,6 +182,15 @@ public class TCPPacketTest {
     }
 
     @Test
+    public void bigPorts() throws Exception {
+        TCPPacket p = new TCPPacket();
+        p.sourcePort(50000);
+        p.destinationPort(50000);
+        assertEquals(50000, p.sourcePort());
+        assertEquals(50000, p.destinationPort());
+    }
+
+    @Test
     public void sequenceNumber() throws Exception {
         TCPPacket p = new TCPPacket();
         assertEquals(0, p.sequenceNumber());
