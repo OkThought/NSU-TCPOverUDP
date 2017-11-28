@@ -142,6 +142,12 @@ public class TCPPacket {
         return bytes.length - dataOffset();
     }
 
+    @Override
+    public String toString() {
+        return String.format("TCPPacket <flags: %b sequence: %d ack: %d src: %d dst: %d>",
+                flags(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort());
+    }
+
     private static int unsignedShortToInt(short value) {
         return value & 0xffff;
     }
