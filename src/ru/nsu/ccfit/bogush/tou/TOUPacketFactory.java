@@ -25,8 +25,7 @@ class TOUPacketFactory {
 
     static TCPPacket decapsulateTCP (DatagramPacket packet) {
         TCPPacket p = new TCPPacket(packet.getData());
-        p.sourcePort((short) packet.getPort());
-
+        p.sourcePort(packet.getPort());
         return p;
     }
 
@@ -35,8 +34,18 @@ class TOUPacketFactory {
     }
 
     static DatagramPacket encapsulateIntoUDP(TOUSystemPacket systemPacket) {
-        TCPPacket tcpPacket = new TCPPacket(TCPPacket.HEADER_SIZE);
+        TCPPacket tcpPacket = createTCPPacket(systemPacket);
         return encapsulateIntoUDP(tcpPacket, systemPacket.destinationAddress());
+    }
+
+    static TCPPacket createTCPPacket(TOUSystemPacket systemPacket) {
+        TCPPacket p = new TCPPacket(TCPPacket.HEADER_SIZE);
+        p.flags(systemPacket.type().toByte());
+        p.ackNumber(systemPacket.ackNumber());
+        p.sequenceNumber(systemPacket.sequenceNumber());
+        p.sourcePort(systemPacket.sourcePort());
+        p.destinationPort(systemPacket.destinationPort());
+        return p;
     }
 
     static boolean canMerge(TOUPacket dataPacket, TOUSystemPacket systemPacket) {
