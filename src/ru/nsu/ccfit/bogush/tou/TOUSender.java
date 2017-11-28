@@ -46,18 +46,7 @@ class TOUSender extends Thread {
 
         try {
             while (!Thread.interrupted()) {
-                while (true) {
-                    TOUSystemPacket systemPacket = systemPackets.poll(timeout, TimeUnit.MILLISECONDS);
-                    LOGGER.debug("polled {}", systemPacket);
-                    if (systemPacket == null) break;
-
-                    TOUPacket dataPacket = tryToMergeWithAnyDataPacket(systemPacket);
-                    if (dataPacket != null) {
-                        send(dataPacket);
-                    } else {
-                        sendSystemPacket();
-                    }
-                }
+                sendSystemPackets();
                 sendDataPacket();
             }
         } catch (InterruptedException | IOException e) {
@@ -150,6 +139,7 @@ class TOUSender extends Thread {
 
         TOUPacket dataPacket;
         dataPacket = dataPackets.poll(timeout, TimeUnit.MILLISECONDS);
+        LOGGER.debug("polled {}", dataPacket);
 
         if (dataPacket == null) {
             dataPacket = flushBiggestAvailableBuffer();
@@ -171,16 +161,21 @@ class TOUSender extends Thread {
         return LOGGER.traceExit(b.isPresent() ? b.get().flushIntoPacket() : null);
     }
 
-    private void sendSystemPacket() throws InterruptedException, IOException {
+    private void sendSystemPackets() throws InterruptedException, IOException {
         LOGGER.traceEntry();
 
-        TOUSystemPacket systemPacket;
-        synchronized (systemPackets) {
-            systemPacket = systemPackets.poll(timeout, TimeUnit.MILLISECONDS);
-            if (systemPacket == null) return;
-            systemPackets.put(systemPacket);
+        while (true) {
+            TOUSystemPacket systemPacket = systemPackets.poll(timeout, TimeUnit.MILLISECONDS);
+            LOGGER.debug("polled {}", systemPacket);
+            if (systemPacket == null) break;
+
+            TOUPacket dataPacket = tryToMergeWithAnyDataPacket(systemPacket);
+            if (dataPacket != null) {
+                send(dataPacket);
+            } else {
+                send(systemPacket);
+            }
         }
-        send(systemPacket);
 
         LOGGER.traceExit();
     }
