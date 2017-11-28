@@ -6,6 +6,7 @@ import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 
 import java.io.IOException;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
@@ -23,14 +24,13 @@ public class TOUServerSocket {
     private DatagramSocket socket;
 
     public TOUServerSocket() throws IOException {
-        logger.traceEntry();
-        logger.traceExit();
+        this(0);
     }
 
     public TOUServerSocket(int port) throws IOException {
         logger.traceEntry();
 
-        bind(new InetSocketAddress(port));
+        bind(new InetSocketAddress(InetAddress.getLocalHost(), port));
 
         logger.traceExit();
     }
