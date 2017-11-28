@@ -20,6 +20,8 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
                                  InetAddress destinationAddress, int destinationPort,
                                  int bufferSize) {
         if (bufferSize <= 0) throw new IllegalArgumentException("bufferSize <= 0");
+        if (sourceAddress == null) throw new IllegalArgumentException("source address is null");
+        if (destinationAddress == null) throw new IllegalArgumentException("destination address is null");
         this.sender = sender;
         this.sourceAddress = sourceAddress;
         this.sourcePort = sourcePort;
