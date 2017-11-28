@@ -46,17 +46,17 @@ class TOUSender extends Thread {
 
         try {
             while (!Thread.interrupted()) {
-                TOUSystemPacket systemPacket = peekSystemPacketIfQueueIsNotEmpty();
-                LOGGER.debug("peeked {}", systemPacket);
+                while (true) {
+                    TOUSystemPacket systemPacket = systemPackets.poll(timeout, TimeUnit.MILLISECONDS);
+                    LOGGER.debug("polled {}", systemPacket);
+                    if (systemPacket == null) break;
 
-                while (systemPacket != null) {
                     TOUPacket dataPacket = tryToMergeWithAnyDataPacket(systemPacket);
                     if (dataPacket != null) {
                         send(dataPacket);
                     } else {
                         sendSystemPacket();
                     }
-                    systemPacket = peekSystemPacketIfQueueIsNotEmpty();
                 }
                 sendDataPacket();
             }
@@ -149,31 +149,26 @@ class TOUSender extends Thread {
         LOGGER.traceEntry();
 
         TOUPacket dataPacket;
-        Optional<TOUPacket> dataPacketOptional = Optional.empty();
-        synchronized (dataPackets) {
-            if (dataPackets.isEmpty()) {
-                dataPacketOptional = flushBiggestAvailableBuffer();
-            }
-            if (dataPacketOptional.isPresent()) {
-                dataPacket = dataPacketOptional.get();
-                dataPackets.put(dataPacket);
-            } else {
-                dataPacket = dataPackets.poll(timeout, TimeUnit.MILLISECONDS);
-                if (dataPacket == null) return;
-                dataPackets.put(dataPacket);
-            }
+        dataPacket = dataPackets.poll(timeout, TimeUnit.MILLISECONDS);
+
+        if (dataPacket == null) {
+            dataPacket = flushBiggestAvailableBuffer();
         }
-        send(dataPacket);
+
+        if (dataPacket != null) {
+            dataPackets.put(dataPacket);
+            send(dataPacket);
+        }
 
         LOGGER.traceExit();
     }
 
-    private Optional<TOUPacket> flushBiggestAvailableBuffer() {
+    private TOUPacket flushBiggestAvailableBuffer() {
         LOGGER.traceEntry();
 
         Optional<TOUBufferHolder> b = bufferHolders.stream().max(Comparator.comparingInt(TOUBufferHolder::available));
 
-        return LOGGER.traceExit(Optional.ofNullable(b.isPresent() ? b.get().flushIntoPacket() : null));
+        return LOGGER.traceExit(b.isPresent() ? b.get().flushIntoPacket() : null);
     }
 
     private void sendSystemPacket() throws InterruptedException, IOException {
