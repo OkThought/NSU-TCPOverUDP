@@ -158,12 +158,11 @@ public class TOUSystemPacket {
 
     @Override
     public String toString() {
-        return "TOUSystemPacket <" +
-                "type: " + type +
-                " source: " + sourceAddress + ":" + sourcePort +
-                " destination: " + destinationAddress + ":" + destinationPort +
+        return "TOUSystemPacket <" + type +
                 " sequence: " + sequenceNumber +
                 " ack: " + ackNumber +
+                " source: " + sourceAddress + ":" + sourcePort +
+                " destination: " + destinationAddress + ":" + destinationPort +
                 '>';
     }
 }
