@@ -51,10 +51,12 @@ class TOUReceiver extends Thread {
                 TCPPacket tcpPacket = TOUPacketFactory.decapsulateTCP(packet);
 
                 if (!ignoreDataPackets && tcpPacket.data().length > 0) {
+                    LOGGER.trace("this packet contains data, put it in dataMap");
                     TOUSystemPacket key = new TOUSystemPacket();
                     key.sourceAddress(packet.getAddress());
                     key.sourcePort(tcpPacket.sourcePort());
                     key.sequenceNumber(tcpPacket.sequenceNumber());
+                    LOGGER.debug("put data into dataMap at the key: {}", key);
                     dataMap.put(key, tcpPacket.data());
                 }
 
@@ -64,7 +66,7 @@ class TOUReceiver extends Thread {
                 InetAddress sourceAddress = packet.getAddress();
                 int sourcePort = tcpPacket.sourcePort();
                 int destinationPort = tcpPacket.destinationPort();
-                InetAddress destinationAddress = socket.getInetAddress();
+                InetAddress destinationAddress = socket.getLocalAddress();
 
                 TOUSystemPacket systemPacket = new TOUSystemPacket(packetType,
                         sourceAddress, sourcePort,
@@ -96,6 +98,7 @@ class TOUReceiver extends Thread {
                         key.ackNumber(tcpPacket.ackNumber());
                         break;
                 }
+                LOGGER.debug("put {} into map with key: {}", systemPacket, key);
                 systemPacketMap.put(key, systemPacket);
             }
         } catch (IOException | TCPUnknownPacketTypeException e) {
