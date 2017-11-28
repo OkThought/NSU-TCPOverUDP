@@ -20,6 +20,7 @@ class TOUSender extends Thread {
     private final int timeout;
 
     TOUSender(DatagramSocket udpSocket, int queueCapacity, int timeout) throws IOException {
+        super("TOUSender");
         this.udpSocket = udpSocket;
         dataPackets = new ArrayBlockingQueue<>(queueCapacity);
         systemPackets = new ArrayBlockingQueue<>(queueCapacity);

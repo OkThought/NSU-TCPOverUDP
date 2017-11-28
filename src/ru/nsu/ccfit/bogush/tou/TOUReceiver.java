@@ -30,6 +30,7 @@ class TOUReceiver extends Thread {
 
 
     TOUReceiver (DatagramSocket socket, int packetSize) {
+        super("TOUReceiver");
         LOGGER.traceEntry();
 
         this.socket = socket;
