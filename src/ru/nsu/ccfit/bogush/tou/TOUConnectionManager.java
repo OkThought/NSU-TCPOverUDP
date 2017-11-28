@@ -101,7 +101,11 @@ class TOUConnectionManager {
         LOGGER.traceEntry("address: {} port: {}", serverAddress, serverPort);
 
         checkState(BOUND);
-        datagramSocket.connect(serverAddress, serverPort);
+        startThreadsIfNotAlive();
+
+//        LOGGER.trace("connect {} to {}:{}", ()->TOULog4JUtils.toString(datagramSocket), ()->serverAddress, ()->serverPort);
+//        datagramSocket.connect(serverAddress, serverPort);
+//        LOGGER.trace("connected");
 
         TOUSystemPacket synack = sendSynOrFin(SYN,
                 datagramSocket.getLocalAddress(), datagramSocket.getLocalPort(),
