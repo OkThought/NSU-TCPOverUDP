@@ -14,14 +14,16 @@ public class TOUSocket {
     static {
         TOULog4JUtils.initIfNotInitYet();
     }
-    private static final Logger logger = LogManager.getLogger("Socket");
+    private static final Logger LOGGER = LogManager.getLogger("Socket");
 
     static final int MAX_DATA_SIZE = 1024; // bytes
     static final int MAX_PACKET_SIZE = MAX_DATA_SIZE + TCPPacket.HEADER_SIZE;
     static final int QUEUE_CAPACITY = 512;
-    static final int TIMEOUT = 10;
+    static final int TIMEOUT = 1000;
     private final TOUConnectionManager connectionManager = new TOUConnectionManager();
     private DatagramSocket socket;
+    private InetAddress address;
+    private int port;
 
     public TOUSocket() throws IOException {
         this(new InetSocketAddress(0));
@@ -33,71 +35,97 @@ public class TOUSocket {
     }
 
     public TOUSocket(SocketAddress socketAddress) throws SocketException {
-        logger.traceEntry(() -> TOULog4JUtils.toString(socketAddress));
+        LOGGER.traceEntry(() -> TOULog4JUtils.toString(socketAddress));
 
         socket = new DatagramSocket(socketAddress);
         connectionManager.bind(socket);
 
-        logger.traceExit();
+        LOGGER.traceExit();
     }
 
     public boolean isBound() {
-        logger.traceEntry();
-        return logger.traceExit(socket != null);
+        LOGGER.traceEntry();
+        return LOGGER.traceExit(socket != null);
+    }
+
+    public boolean isConnected() {
+        LOGGER.traceEntry();
+        return LOGGER.traceExit(address != null && port != 0);
     }
 
     public void bind(SocketAddress socketAddress) throws IOException {
-        logger.traceEntry();
+        LOGGER.traceEntry();
 
-        checkBound(true);
+        checkBound(false);
         socket = new DatagramSocket(socketAddress);
         connectionManager.bind(socket);
 
-        logger.traceExit();
+        LOGGER.traceExit();
     }
 
 
     public void connect (InetAddress address, int port) throws IOException {
-        logger.traceEntry("address: {} port: {}", address, port);
+        LOGGER.traceEntry("address: {} port: {}", address, port);
 
-        checkBound(false);
+        this.address = address;
+        this.port = port;
         connectionManager.sender(new TOUSender(socket, QUEUE_CAPACITY, TIMEOUT));
         connectionManager.receiver(new TOUReceiver(socket, MAX_PACKET_SIZE));
         try {
             connectionManager.connect(address, port);
         } catch (InterruptedException | TCPUnknownPacketTypeException e) {
-            logger.catching(e);
-            throw logger.throwing(new IOException(e));
+            LOGGER.catching(e);
+            throw LOGGER.throwing(new IOException(e));
         }
 
-        logger.traceExit();
+        LOGGER.traceExit();
     }
 
     public InputStream getInputStream () throws IOException {
-        logger.traceEntry();
+        LOGGER.traceEntry();
+
+        checkBound(true);
+        checkConnected(true);
+
         TOUSocketInputStream is = new TOUSocketInputStream(
-                connectionManager.receiver(), socket.getInetAddress(), socket.getPort());
-        return logger.traceExit(is);
+                connectionManager.receiver(), address, port);
+        return LOGGER.traceExit(is);
     }
 
 
     public OutputStream getOutputStream () throws IOException {
-        logger.traceEntry();
-        return logger.traceExit(new TOUSocketOutputStream(connectionManager.sender(),
+        LOGGER.traceEntry();
+
+        checkBound(true);
+        checkConnected(true);
+
+        return LOGGER.traceExit(new TOUSocketOutputStream(connectionManager.sender(),
                 socket.getLocalAddress(), socket.getLocalPort(),
-                socket.getInetAddress(), socket.getPort(), MAX_DATA_SIZE));
+                address, port, MAX_DATA_SIZE));
     }
 
     public void close () throws IOException {
-        logger.traceEntry();
-        logger.traceExit();
+        LOGGER.traceEntry();
+        LOGGER.traceExit();
     }
 
-    private void checkBound(boolean bound) throws IOException {
-        logger.traceEntry();
-        if (isBound() == bound) {
-            throw logger.throwing(new IOException("Socket is " + (isBound() ? "" : "not ") + "bound"));
+    private void checkBound(boolean shouldBeBound) throws IOException {
+        LOGGER.traceEntry();
+
+        if (isBound() == shouldBeBound) {
+            throw LOGGER.throwing(new IOException("Socket is " + (isBound() ? "" : "not ") + "bound"));
         }
-        logger.traceExit();
+
+        LOGGER.traceExit();
+    }
+
+    private void checkConnected(boolean shouldBeConnected) throws IOException {
+        LOGGER.traceEntry();
+
+        if (isConnected() == shouldBeConnected) {
+            throw LOGGER.throwing(new IOException("Socket is " + (isConnected() ? "" : "not ") + "connected"));
+        }
+
+        LOGGER.traceExit();
     }
 }
