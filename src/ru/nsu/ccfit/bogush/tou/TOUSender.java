@@ -46,20 +46,17 @@ class TOUSender extends Thread {
 
         try {
             while (!Thread.interrupted()) {
-                boolean systemPacketQueueEmpty;
-                TOUSystemPacket systemPacket;
-                synchronized (systemPackets) {
-                    systemPacketQueueEmpty = systemPackets.isEmpty();
-                    systemPacket = systemPackets.peek();
-                }
+                TOUSystemPacket systemPacket = peekSystemPacketIfQueueIsNotEmpty();
+                LOGGER.debug("peeked {}", systemPacket);
 
-                while (!systemPacketQueueEmpty) {
+                while (systemPacket != null) {
                     TOUPacket dataPacket = tryToMergeWithAnyDataPacket(systemPacket);
                     if (dataPacket != null) {
                         send(dataPacket);
                     } else {
                         sendSystemPacket();
                     }
+                    systemPacket = peekSystemPacketIfQueueIsNotEmpty();
                 }
                 sendDataPacket();
             }
@@ -131,6 +128,21 @@ class TOUSender extends Thread {
         bufferHolders.add(bufferHolder);
 
         LOGGER.traceExit();
+    }
+
+    private TOUSystemPacket peekSystemPacketIfQueueIsNotEmpty() {
+        LOGGER.traceEntry();
+
+        TOUSystemPacket systemPacket = null;
+        LOGGER.trace("lock the system packet queue");
+        synchronized (systemPackets) {
+            if (!systemPackets.isEmpty()) {
+                systemPacket = systemPackets.peek();
+            }
+        }
+        LOGGER.trace("unlock the system packet queue");
+
+        return LOGGER.traceExit(systemPacket);
     }
 
     private void sendDataPacket() throws IOException, InterruptedException {
