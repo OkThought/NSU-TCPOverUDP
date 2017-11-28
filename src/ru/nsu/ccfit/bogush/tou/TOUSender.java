@@ -46,8 +46,15 @@ class TOUSender extends Thread {
 
         try {
             while (!Thread.interrupted()) {
-                while (!systemPackets.isEmpty()) {
-                    TOUPacket dataPacket = tryToMergeWithAnyDataPacket(systemPackets.peek());
+                boolean systemPacketQueueEmpty;
+                TOUSystemPacket systemPacket;
+                synchronized (systemPackets) {
+                    systemPacketQueueEmpty = systemPackets.isEmpty();
+                    systemPacket = systemPackets.peek();
+                }
+
+                while (!systemPacketQueueEmpty) {
+                    TOUPacket dataPacket = tryToMergeWithAnyDataPacket(systemPacket);
                     if (dataPacket != null) {
                         send(dataPacket);
                     } else {
