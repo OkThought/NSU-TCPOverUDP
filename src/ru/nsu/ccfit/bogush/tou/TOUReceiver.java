@@ -1,10 +1,11 @@
 package ru.nsu.ccfit.bogush.tou;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.nsu.ccfit.bogush.tcp.TCPPacket;
 import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
 import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 import ru.nsu.ccfit.bogush.util.BlockingHashMap;
-import ru.nsu.ccfit.bogush.util.BlockingHashSet;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -14,6 +15,11 @@ import java.net.InetAddress;
 import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.ORDINARY;
 
 class TOUReceiver extends Thread {
+    static {
+        TOULog4JUtils.initIfNotInitYet();
+    }
+    private static final Logger LOGGER = LogManager.getLogger("TOUReceiver");
+
     private DatagramSocket socket;
     private DatagramPacket packet;
 
@@ -24,12 +30,18 @@ class TOUReceiver extends Thread {
 
 
     TOUReceiver (DatagramSocket socket, int packetSize) {
+        LOGGER.traceEntry();
+
         this.socket = socket;
         packet = new DatagramPacket(new byte[packetSize], packetSize);
+
+        LOGGER.traceExit();
     }
 
     @Override
     public void run () {
+        LOGGER.traceEntry();
+
         try {
             while (!Thread.interrupted()) {
                 socket.receive(packet);
@@ -86,21 +98,37 @@ class TOUReceiver extends Thread {
         } catch (IOException | TCPUnknownPacketTypeException e) {
             e.printStackTrace();
         }
+
+        LOGGER.traceExit();
     }
 
     void ignoreDataPackets(boolean newValue) {
+        LOGGER.traceEntry(String.valueOf(newValue));
+
         ignoreDataPackets = newValue;
+
+        LOGGER.traceExit();
     }
 
     byte[] takeData(InetAddress sourceAddress, int sourcePort, short sequenceNumber) throws InterruptedException {
+        LOGGER.traceEntry("source: {}:{} sequence: {}", sourceAddress, sourcePort, sequenceNumber);
+
         TOUSystemPacket key = new TOUSystemPacket();
         key.sourceAddress(sourceAddress);
         key.sourcePort(sourcePort);
         key.sequenceNumber(sequenceNumber);
-        return dataMap.take(key);
+
+        return LOGGER.traceExit(dataMap.take(key));
     }
 
     TOUSystemPacket receiveSystemPacket(TOUSystemPacket systemPacketKey) throws InterruptedException {
-        return systemPacketMap.take(systemPacketKey);
+        LOGGER.traceEntry("key: {}", systemPacketKey);
+
+        return LOGGER.traceExit(systemPacketMap.take(systemPacketKey));
+    }
+
+    @Override
+    public String toString() {
+        return "TOUReceiver <" + TOULog4JUtils.toString(socket) + '>';
     }
 }
