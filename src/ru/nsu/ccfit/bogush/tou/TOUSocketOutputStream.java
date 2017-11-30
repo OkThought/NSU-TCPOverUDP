@@ -14,6 +14,7 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
     private final InetAddress destinationAddress;
     private final int destinationPort;
     private final ByteBuffer buffer;
+    private short sequenceNumber = 0;
 
     public TOUSocketOutputStream(TOUSender sender,
                                  InetAddress sourceAddress, int sourcePort,
@@ -38,6 +39,7 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
                 buffer.put((byte) b);
                 if (buffer.remaining() == 0) {
                     sender.putInQueue(wrap(buffer.array().clone()));
+                    incrementSequenceNumber();
                     buffer.position(0);
                 }
             }
@@ -48,10 +50,15 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
 
     private TOUPacket wrap(byte[] data) {
         TCPPacket tcpPacket = new TCPPacket(data.length);
+        tcpPacket.sequenceNumber(sequenceNumber);
         tcpPacket.data(data);
         tcpPacket.sourcePort(sourcePort);
         tcpPacket.destinationPort(destinationPort);
         return new TOUPacket(tcpPacket, sourceAddress, destinationAddress);
+    }
+
+    private void incrementSequenceNumber() {
+        ++sequenceNumber;
     }
 
     @Override
@@ -69,6 +76,8 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
             data = new byte[size];
             System.arraycopy(buffer.array(), 0, data, 0, size);
         }
-        return wrap(data);
+        TOUPacket touPacket = wrap(data);
+        incrementSequenceNumber();
+        return touPacket;
     }
 }
