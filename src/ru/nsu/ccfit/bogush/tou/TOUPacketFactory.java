@@ -39,13 +39,21 @@ class TOUPacketFactory {
     }
 
     static TCPPacket createTCPPacket(TOUSystemPacket systemPacket) {
-        TCPPacket p = new TCPPacket(TCPPacket.HEADER_SIZE);
+        TCPPacket p = new TCPPacket();
         p.flags(systemPacket.type().toByte());
         p.ackNumber(systemPacket.ackNumber());
         p.sequenceNumber(systemPacket.sequenceNumber());
         p.sourcePort(systemPacket.sourcePort());
         p.destinationPort(systemPacket.destinationPort());
         return p;
+    }
+
+    static TOUPacket createTOUPacketByAck(TOUSystemPacket systemPacket) {
+        TCPPacket p = new TCPPacket();
+        p.sourcePort(systemPacket.destinationPort());
+        p.destinationPort(systemPacket.sourcePort());
+        p.sequenceNumber(systemPacket.ackNumber());
+        return new TOUPacket(p, systemPacket.destinationAddress(), systemPacket.sourceAddress());
     }
 
     static boolean canMerge(TOUPacket dataPacket, TOUSystemPacket systemPacket) {
