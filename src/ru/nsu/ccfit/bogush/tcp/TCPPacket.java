@@ -144,7 +144,7 @@ public class TCPPacket {
 
     @Override
     public String toString() {
-        return String.format("TCPPacket <flags: %b sequence: %d ack: %d src: %d dst: %d>",
+        return String.format("TCPPacket <flags: %h sequence: %d ack: %d src: %d dst: %d>",
                 flags(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort());
     }
 
