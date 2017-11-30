@@ -12,7 +12,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 
-import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.ORDINARY;
+import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.*;
 
 class TOUReceiver extends Thread {
     static {
@@ -20,14 +20,14 @@ class TOUReceiver extends Thread {
     }
     private static final Logger LOGGER = LogManager.getLogger("TOUReceiver");
 
-    private DatagramSocket socket;
-    private DatagramPacket packet;
-
-    private volatile boolean ignoreDataPackets = true;
-
     private final BlockingHashMap<TOUSystemPacket, byte[]> dataMap = new BlockingHashMap<>();
     private final BlockingHashMap<TOUSystemPacket, TOUSystemPacket> systemPacketMap = new BlockingHashMap<>();
 
+    private DatagramSocket socket;
+    private DatagramPacket packet;
+    private TOUAckHandler ackHandler;
+
+    private volatile boolean ignoreDataPackets = true;
 
     TOUReceiver (DatagramSocket socket, int packetSize) {
         super("TOUReceiver");
@@ -98,8 +98,12 @@ class TOUReceiver extends Thread {
                         key.ackNumber(tcpPacket.ackNumber());
                         break;
                 }
-                LOGGER.debug("put {} into map with key: {}", systemPacket, key);
-                systemPacketMap.put(key, systemPacket);
+                if (packetType == ACK && ackHandler != null) {
+                    ackHandler.ackReceived(systemPacket);
+                } else {
+                    LOGGER.debug("put {} into map with key: {}", systemPacket, key);
+                    systemPacketMap.put(key, systemPacket);
+                }
             }
         } catch (IOException | TCPUnknownPacketTypeException e) {
             LOGGER.catching(e);
@@ -137,5 +141,9 @@ class TOUReceiver extends Thread {
     @Override
     public String toString() {
         return "TOUReceiver <" + TOULog4JUtils.toString(socket) + '>';
+    }
+
+    public void setAckHandler(TOUAckHandler ackHandler) {
+        this.ackHandler = ackHandler;
     }
 }
