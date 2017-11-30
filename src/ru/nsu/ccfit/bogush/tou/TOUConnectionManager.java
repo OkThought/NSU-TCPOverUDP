@@ -37,7 +37,7 @@ import static ru.nsu.ccfit.bogush.tou.TOUConnectionState.*;
  *      ack number set to B+1
  *      and sequence number set to A+1
  */
-class TOUConnectionManager {
+class TOUConnectionManager implements TOUAckHandler {
     static {
         TOULog4JUtils.initIfNotInitYet();
     }
@@ -113,6 +113,7 @@ class TOUConnectionManager {
         state = SYN_SENT;
 
         sendACK(synack);
+        receiver.setAckHandler(this);
         state = ESTABLISHED;
 
         LOGGER.info("Successfully connected to {}:{}", serverAddress, serverPort);
@@ -131,6 +132,7 @@ class TOUConnectionManager {
         state = SYN_RECEIVED;
 
         TOUSystemPacket ack = sendSynackOrFinack(SYNACK, syn, datagramSocket.getLocalPort());
+        receiver.setAckHandler(this);
         state = ESTABLISHED;
 
         LOGGER.info("Successfully accepted connection from {}:{}", ack.sourceAddress(), ack.sourcePort());
@@ -303,5 +305,16 @@ class TOUConnectionManager {
         ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
 
         return LOGGER.traceExit(ack);
+    }
+
+    @Override
+    public void ackReceived(TOUSystemPacket packet) {
+        LOGGER.traceEntry("{}", packet);
+
+        checkState(ESTABLISHED);
+        TOUPacket touPacket = TOUPacketFactory.createTOUPacketByAck(packet);
+        sender.removeFromQueue(touPacket);
+
+        LOGGER.traceExit();
     }
 }
