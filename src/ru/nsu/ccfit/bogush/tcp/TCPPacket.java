@@ -40,7 +40,13 @@ public class TCPPacket {
             throw new IllegalArgumentException("Byte array too small: " + bytes.length + " < " + HEADER_SIZE);
         }
         this.bytes = bytes;
-        this.bb = ByteBuffer.wrap(bytes);
+        this.bb = ByteBuffer.wrap(this.bytes);
+    }
+
+    public TCPPacket(byte[] bytes, int offset, int length) {
+        this.bytes = new byte[length];
+        System.arraycopy(bytes, offset, this.bytes, 0, length);
+        this.bb = ByteBuffer.wrap(this.bytes);
     }
 
     public void setACK (boolean value) {
