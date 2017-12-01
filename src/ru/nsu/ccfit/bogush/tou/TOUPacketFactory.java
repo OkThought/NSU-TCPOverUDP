@@ -103,6 +103,7 @@ class TOUPacketFactory {
         ack.destinationPort(synackOrFinack.sourcePort());
         ack.sequenceNumber(synackOrFinack.ackNumber()); // A + 1
         ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
+        ack.type(ACK);
 
         return LOGGER.traceExit(ack);
     }
