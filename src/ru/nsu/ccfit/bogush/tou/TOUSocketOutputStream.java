@@ -64,7 +64,7 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
     @Override
     public int available() {
         synchronized (buffer) {
-            return buffer.position() + 1;
+            return buffer.position();
         }
     }
 
@@ -72,7 +72,8 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
     public TOUPacket flushIntoPacket() {
         byte[] data;
         synchronized (buffer) {
-            int size = buffer.position() + 1;
+            int size = buffer.position();
+            buffer.position(0);
             data = new byte[size];
             System.arraycopy(buffer.array(), 0, data, 0, size);
         }
