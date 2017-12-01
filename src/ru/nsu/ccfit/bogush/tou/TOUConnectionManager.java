@@ -101,10 +101,6 @@ class TOUConnectionManager implements TOUPacketHandler {
         checkState(BOUND);
         startThreadsIfNotAlive();
 
-//        LOGGER.trace("connect {} to {}:{}", ()->TOULog4JUtils.toString(datagramSocket), ()->serverAddress, ()->serverPort);
-//        datagramSocket.connect(serverAddress, serverPort);
-//        LOGGER.trace("connected");
-
         TOUSystemPacket synack = sendSynOrFin(SYN,
                 datagramSocket.getLocalAddress(), datagramSocket.getLocalPort(),
                 serverPort, serverAddress);
@@ -115,7 +111,9 @@ class TOUConnectionManager implements TOUPacketHandler {
         receiver.setPacketHandler(this);
         state = ESTABLISHED;
 
+        LOGGER.info("\n\n");
         LOGGER.info("Successfully connected to {}:{}", serverAddress, serverPort);
+        LOGGER.info("\n\n");
 
         LOGGER.traceExit();
     }
@@ -134,7 +132,9 @@ class TOUConnectionManager implements TOUPacketHandler {
         TOUSystemPacket ack = sendSynackOrFinack(SYNACK, syn, datagramSocket.getLocalPort());
         state = ESTABLISHED;
 
+        LOGGER.info("\n\n");
         LOGGER.info("Successfully accepted connection from {}:{}", ack.sourceAddress(), ack.sourcePort());
+        LOGGER.info("\n\n");
 
         return LOGGER.traceExit(new TOUSocket(syn.sourceAddress(), syn.sourcePort()));
     }
