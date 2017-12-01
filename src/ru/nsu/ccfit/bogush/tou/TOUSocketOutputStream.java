@@ -1,5 +1,7 @@
 package ru.nsu.ccfit.bogush.tou;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.nsu.ccfit.bogush.tcp.TCPPacket;
 
 import java.io.IOException;
@@ -8,6 +10,11 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 
 class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
+    static {
+        TOULog4JUtils.initIfNotInitYet();
+    }
+    private static final Logger LOGGER = LogManager.getLogger(TOUSocketOutputStream.class.getSimpleName());
+
     private final TOUSender sender;
     private final InetAddress sourceAddress;
     private final int sourcePort;
@@ -20,9 +27,16 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
                                  InetAddress sourceAddress, int sourcePort,
                                  InetAddress destinationAddress, int destinationPort,
                                  int bufferSize) {
-        if (bufferSize <= 0) throw new IllegalArgumentException("bufferSize <= 0");
-        if (sourceAddress == null) throw new IllegalArgumentException("source address is null");
-        if (destinationAddress == null) throw new IllegalArgumentException("destination address is null");
+        LOGGER.traceEntry("sender: {} source: {}:{} destination: {}:{} buffer size: {}",
+                sender, sourceAddress, sourcePort, destinationAddress, destinationPort, bufferSize);
+
+        if (bufferSize <= 0)
+            throw LOGGER.throwing(new IllegalArgumentException("bufferSize <= 0"));
+        if (sourceAddress == null)
+            throw LOGGER.throwing(new IllegalArgumentException("source address is null"));
+        if (destinationAddress == null)
+            throw LOGGER.throwing(new IllegalArgumentException("destination address is null"));
+
         this.sender = sender;
         this.sourceAddress = sourceAddress;
         this.sourcePort = sourcePort;
@@ -30,10 +44,13 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
         this.destinationPort = destinationPort;
         this.buffer = ByteBuffer.allocate(bufferSize);
         sender.addBufferHolder(this);
+
+        LOGGER.traceExit();
     }
 
     @Override
     public void write(int b) throws IOException {
+        LOGGER.traceEntry("byte: {}", (byte) b);
         try {
             synchronized (buffer) {
                 buffer.put((byte) b);
@@ -44,8 +61,10 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
                 }
             }
         } catch (InterruptedException e) {
-            throw new IOException(e);
+            LOGGER.catching(e);
+            throw LOGGER.throwing(new IOException(e));
         }
+        LOGGER.traceExit();
     }
 
     private TOUPacket wrap(byte[] data) {
