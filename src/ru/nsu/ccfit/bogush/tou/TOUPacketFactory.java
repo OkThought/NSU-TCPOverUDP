@@ -7,6 +7,7 @@ import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
 import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -161,5 +162,15 @@ class TOUPacketFactory {
     private static short rand() {
         LOGGER.traceEntry();
         return LOGGER.traceExit((short) ThreadLocalRandom.current().nextInt());
+    }
+
+    public static TOUSystemPacket createDataKeyPacket(TCPPacket tcpPacket, DatagramPacket packet, DatagramSocket socket) {
+        TOUSystemPacket key = new TOUSystemPacket();
+        key.sourceAddress(packet.getAddress());
+        key.sourcePort(tcpPacket.sourcePort());
+        key.destinationAddress(socket.getLocalAddress());
+        key.destinationPort(tcpPacket.destinationPort());
+        key.sequenceNumber(tcpPacket.sequenceNumber());
+        return key;
     }
 }

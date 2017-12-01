@@ -52,12 +52,7 @@ class TOUReceiver extends Thread {
 
                 if (!ignoreDataPackets && tcpPacket.dataSize() > 0) {
                     LOGGER.trace("this packet contains data, put it in dataMap");
-                    TOUSystemPacket key = new TOUSystemPacket();
-                    key.sourceAddress(packet.getAddress());
-                    key.sourcePort(tcpPacket.sourcePort());
-                    key.destinationAddress(socket.getLocalAddress());
-                    key.destinationPort(tcpPacket.destinationPort());
-                    key.sequenceNumber(tcpPacket.sequenceNumber());
+                    TOUSystemPacket key = TOUPacketFactory.createDataKeyPacket(tcpPacket, packet, socket);
                     LOGGER.debug("put data into dataMap at the key: {}", key);
                     dataMap.put(key, tcpPacket.data());
                     packetHandler.dataReceived(key);
