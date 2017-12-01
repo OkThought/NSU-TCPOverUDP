@@ -96,11 +96,10 @@ class TOUReceiver extends Thread {
                         key.ackNumber(tcpPacket.ackNumber());
                         break;
                 }
+                LOGGER.debug("put {} into map with key: {}", systemPacket, key);
+                systemPacketMap.put(key, systemPacket);
                 if (packetType == ACK && packetHandler != null) {
                     packetHandler.ackReceived(systemPacket);
-                } else {
-                    LOGGER.debug("put {} into map with key: {}", systemPacket, key);
-                    systemPacketMap.put(key, systemPacket);
                 }
             }
         } catch (IOException | TCPUnknownPacketTypeException e) {
@@ -136,12 +135,20 @@ class TOUReceiver extends Thread {
         return LOGGER.traceExit(systemPacketMap.take(systemPacketKey));
     }
 
+    void setPacketHandler(TOUPacketHandler packetHandler) {
+        this.packetHandler = packetHandler;
+    }
+
+    void deleteSystemPacketFromMap(TOUSystemPacket packet) {
+        LOGGER.traceEntry(()->packet);
+
+        systemPacketMap.remove(packet);
+
+        LOGGER.traceExit();
+    }
+
     @Override
     public String toString() {
         return "TOUReceiver <" + TOULog4JUtils.toString(socket) + '>';
-    }
-
-    public void setPacketHandler(TOUPacketHandler packetHandler) {
-        this.packetHandler = packetHandler;
     }
 }

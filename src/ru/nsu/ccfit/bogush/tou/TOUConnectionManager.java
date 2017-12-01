@@ -261,6 +261,7 @@ class TOUConnectionManager implements TOUPacketHandler {
 
         LOGGER.debug("Handle ACK {}", packet.ackNumber());
         TOUPacket touPacket = TOUPacketFactory.createTOUPacketByAck(packet);
+        receiver.deleteSystemPacketFromMap(packet);
         sender.removeFromQueue(touPacket);
 
         LOGGER.traceExit();
