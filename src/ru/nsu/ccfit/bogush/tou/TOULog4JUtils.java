@@ -23,13 +23,13 @@ public class TOULog4JUtils {
                 socket.getLocalAddress(), socket.getLocalPort(), socket.getInetAddress(), socket.getPort());
     }
 
+    public static Object toString(DatagramPacket packet) {
+        return String.format("udp packet <%s:%s size: %d>", packet.getAddress(), packet.getPort(), packet.getLength());
+    }
+
     public static String toString(SocketAddress socketAddress) {
         return String.format("%s:%s",
                 ((InetSocketAddress) socketAddress).getAddress(),
                 ((InetSocketAddress) socketAddress).getPort());
-    }
-
-    public static Object toString(DatagramPacket packet) {
-        return String.format("udp packet <%s:%s>", packet.getAddress(), packet.getPort());
     }
 }
