@@ -157,8 +157,12 @@ class TOUSender extends Thread {
         LOGGER.traceEntry();
 
         Optional<TOUBufferHolder> b = bufferHolders.stream().max(Comparator.comparingInt(TOUBufferHolder::available));
+        TOUPacket result = null;
+        if (b.isPresent() && b.get().available() > 0) {
+            result = b.get().flushIntoPacket();
+        }
 
-        return LOGGER.traceExit(b.isPresent() ? b.get().flushIntoPacket() : null);
+        return LOGGER.traceExit(result);
     }
 
     private void sendSystemPackets() throws InterruptedException, IOException {
