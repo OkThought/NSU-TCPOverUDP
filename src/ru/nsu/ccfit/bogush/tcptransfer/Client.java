@@ -1,16 +1,17 @@
 package ru.nsu.ccfit.bogush.tcptransfer;
 
-import ru.nsu.ccfit.bogush.tou.TOUSocket;
+import ru.nsu.ccfit.bogush.tou.TOUSocketImplFactory;
 
 import java.io.*;
 import java.net.InetAddress;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 class Client extends Thread {
 	private static final int BUFFER_SIZE = 2 << 20;
-	private TOUSocket socket;
+	private Socket socket;
 	private String filename = null;
 	private InputStream in;
 	private OutputStream out;
@@ -18,7 +19,7 @@ class Client extends Thread {
 	private Client(InetAddress address, int serverPort, String filename) throws IOException {
 		super(Client.class.getName());
 		this.filename = filename;
-		socket = new TOUSocket(address, serverPort);
+		socket = new Socket(address, serverPort);
 	}
 
 	@Override
@@ -97,6 +98,7 @@ class Client extends Thread {
 		String serverAddress = args[1];
 		int serverPort = Integer.parseInt(args[2]);
 		try {
+			Socket.setSocketImplFactory(new TOUSocketImplFactory());
 			Client client = new Client(InetAddress.getByName(serverAddress), serverPort, filename);
 			client.start();
 		} catch (IOException e) {

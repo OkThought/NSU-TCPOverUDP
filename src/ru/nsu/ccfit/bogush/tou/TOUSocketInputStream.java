@@ -15,17 +15,17 @@ class TOUSocketInputStream extends InputStream {
     private static final Logger LOGGER = LogManager.getLogger("TOUSocketInputStream");
 
     private final TOUReceiver receiver;
-    private final InetAddress senderAddress;
-    private final int senderPort;
+    private final InetAddress sourceAddress;
+    private final int sourcePort;
     private ByteBuffer buffer;
     private short sequenceNumber = 0;
 
-    TOUSocketInputStream(TOUReceiver receiver, InetAddress senderAddress, int senderPort) {
-        LOGGER.traceEntry("receiver: {} sender address: {}:{}", ()->receiver, ()->senderAddress, ()->senderPort);
+    TOUSocketInputStream(TOUReceiver receiver, InetAddress sourceAddress, int sourcePort) {
+        LOGGER.traceEntry("receiver: {} sender address: {}:{}", ()->receiver, ()-> sourceAddress, ()-> sourcePort);
 
         this.receiver = receiver;
-        this.senderAddress = senderAddress;
-        this.senderPort = senderPort;
+        this.sourceAddress = sourceAddress;
+        this.sourcePort = sourcePort;
 
         LOGGER.traceExit();
     }
@@ -33,9 +33,11 @@ class TOUSocketInputStream extends InputStream {
     @Override
     public int read () throws IOException {
         LOGGER.traceEntry();
+
+        // TODO: 12/1/17 return -1 on EOF
         try {
             if (buffer == null) {
-                buffer = ByteBuffer.wrap(receiver.takeData(senderAddress, senderPort, sequenceNumber++));
+                buffer = ByteBuffer.wrap(receiver.takeData(sourceAddress, sourcePort, sequenceNumber++));
             }
             return LOGGER.traceExit(buffer.get());
         } catch (InterruptedException e) {

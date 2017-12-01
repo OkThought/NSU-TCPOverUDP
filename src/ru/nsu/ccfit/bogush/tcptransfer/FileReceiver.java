@@ -1,7 +1,7 @@
 package ru.nsu.ccfit.bogush.tcptransfer;
 
 import java.io.*;
-import ru.nsu.ccfit.bogush.tou.TOUSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -12,7 +12,7 @@ public class FileReceiver extends Thread implements SizeObserver {
 	private static final String REGEXP_FILE_PATTERN = "(?<name>.+?)(?>-(?<copies>\\d+))?(?<extension>\\..+)";
 	private static final String UPLOADS = "uploads/";
 	private ArrayList<StopListener> stopListeners = new ArrayList<>();
-	private TOUSocket client;
+	private Socket client;
 	private InputStream in;
 	private OutputStream out;
 	private Receiver receiver;
@@ -20,11 +20,11 @@ public class FileReceiver extends Thread implements SizeObserver {
 	private long bytesReceived = 0;
 	private int bufferSize;
 
-	public FileReceiver(TOUSocket client) throws IOException {
+	public FileReceiver(Socket client) throws IOException {
 		this(client, DEFAULT_BUFFER_SIZE);
 	}
 
-	public FileReceiver(TOUSocket client, int bufferSize) throws IOException {
+	public FileReceiver(Socket client, int bufferSize) throws IOException {
 		super(FileReceiver.class.getName());
 		this.client = client;
 		in = client.getInputStream();

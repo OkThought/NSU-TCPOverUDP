@@ -134,14 +134,13 @@ public class TOUSystemPacket {
 
         TOUSystemPacket that = (TOUSystemPacket) o;
 
-        if (sourcePort != that.sourcePort) return false;
-        if (destinationPort != that.destinationPort) return false;
+        if (type != that.type) return false;
+        if (sourcePort != 0 && that.sourcePort != 0 && sourcePort != that.sourcePort) return false;
+        if (destinationPort != 0 && that.destinationPort != 0 && destinationPort != that.destinationPort) return false;
         if (sequenceNumber != that.sequenceNumber) return false;
         if (ackNumber != that.ackNumber) return false;
-        if (type != that.type) return false;
-        if (sourceAddress != null ? !sourceAddress.equals(that.sourceAddress) : that.sourceAddress != null)
-            return false;
-        return destinationAddress != null ? destinationAddress.equals(that.destinationAddress) : that.destinationAddress == null;
+        if (sourceAddress != null && that.sourceAddress != null && !sourceAddress.equals(that.sourceAddress)) return false;
+        return destinationAddress == null || that.destinationAddress == null || destinationAddress.equals(that.destinationAddress);
     }
 
     @Override

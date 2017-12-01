@@ -1,16 +1,17 @@
 package ru.nsu.ccfit.bogush.tcptransfer;
 
-import ru.nsu.ccfit.bogush.tou.TOUServerSocket;
-import ru.nsu.ccfit.bogush.tou.TOUSocket;
+import ru.nsu.ccfit.bogush.tou.TOUSocketImplFactory;
 
 import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 public class Server extends Thread {
-	private TOUServerSocket socket;
+	private ServerSocket socket;
 
 	public Server(int port) throws IOException {
 		super(Server.class.getName());
-		socket = new TOUServerSocket(port);
+		socket = new ServerSocket(port);
 	}
 
 	@Override
@@ -22,7 +23,7 @@ public class Server extends Thread {
 	public void run() {
 		try {
 			while (!Thread.interrupted()) {
-				TOUSocket client = socket.accept();
+				Socket client = socket.accept();
 				FileReceiver fileReceiver = new FileReceiver(client);
 				fileReceiver.start();
 				SpeedTester speedTester = new SpeedTester(fileReceiver, 3000);
@@ -52,7 +53,10 @@ public class Server extends Thread {
 		}
 
 		int port = Integer.parseInt(args[0]);
+
 		try {
+			ServerSocket.setSocketFactory(new TOUSocketImplFactory());
+			Socket.setSocketImplFactory(new TOUSocketImplFactory());
 			Server server = new Server(port);
 			server.start();
 		} catch (IOException e) {
