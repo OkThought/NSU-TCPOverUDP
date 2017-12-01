@@ -67,42 +67,57 @@ class TOUPacketFactory {
         return new TOUPacket(p, systemPacket.destinationAddress(), systemPacket.sourceAddress());
     }
 
-    static TOUSystemPacket createSynOrFin(TCPPacketType type, InetAddress srcAddr, int srcPort, InetAddress dstAddr, int dstPort) {
-        LOGGER.traceEntry("create {} source: {}:{} destination: {}:{}", type, srcAddr, srcPort, dstAddr, dstPort);
-
-        assert type == SYN || type == FIN;
-
-        return LOGGER.traceExit(new TOUSystemPacket(type, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0));
+    static TOUSystemPacket createSYN(InetAddress srcAddr, int srcPort, InetAddress dstAddr, int dstPort) {
+        LOGGER.traceEntry("source: {}:{} destination: {}:{}", srcAddr, srcPort, dstAddr, dstPort);
+        return LOGGER.traceExit(new TOUSystemPacket(SYN, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0));
     }
 
-    static TOUSystemPacket createSynackOrFinack(TCPPacketType type, InetAddress localAddress, int localPort, TOUSystemPacket synOrFin) {
-        LOGGER.traceEntry("create {}", type);
-
-        assert type == SYNACK || type == FINACK;
-        TOUSystemPacket synackOrFinack = new TOUSystemPacket(synOrFin);
-        synackOrFinack.sourceAddress(localAddress);
-        synackOrFinack.sourcePort(localPort);
-        synackOrFinack.destinationAddress(synOrFin.sourceAddress());
-        synackOrFinack.destinationPort(synOrFin.sourcePort());
-        synackOrFinack.type(type);
-        synackOrFinack.ackNumber((short) (synOrFin.sequenceNumber() + 1));
-        synackOrFinack.sequenceNumber(rand());
-
-        return LOGGER.traceExit(synackOrFinack);
+    static TOUSystemPacket createFIN(InetAddress srcAddr, int srcPort, InetAddress dstAddr, int dstPort) {
+        LOGGER.traceEntry("source: {}:{} destination: {}:{}", srcAddr, srcPort, dstAddr, dstPort);
+        return LOGGER.traceExit(new TOUSystemPacket(FIN, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0));
     }
 
-    static TOUSystemPacket createAck(TOUSystemPacket synackOrFinack) {
+    static TOUSystemPacket createSYNACK(InetAddress localAddress, int localPort, TOUSystemPacket syn) {
+        LOGGER.traceEntry("local address: {}:{} SYN: {}", localAddress, localPort, syn);
+
+        TOUSystemPacket synack = new TOUSystemPacket(syn);
+        synack.sourceAddress(localAddress);
+        synack.sourcePort(localPort);
+        synack.destinationAddress(syn.sourceAddress());
+        synack.destinationPort(syn.sourcePort());
+        synack.type(SYNACK);
+        synack.ackNumber((short) (syn.sequenceNumber() + 1));
+        synack.sequenceNumber(rand());
+
+        return LOGGER.traceExit(synack);
+    }
+
+    static TOUSystemPacket createFINACK(InetAddress localAddress, int localPort, TOUSystemPacket fin) {
+        LOGGER.traceEntry("local address: {}:{} FIN: {}", localAddress, localPort, fin);
+
+        TOUSystemPacket finack = new TOUSystemPacket(fin);
+        finack.sourceAddress(localAddress);
+        finack.sourcePort(localPort);
+        finack.destinationAddress(fin.sourceAddress());
+        finack.destinationPort(fin.sourcePort());
+        finack.type(FINACK);
+        finack.ackNumber((short) (fin.sequenceNumber() + 1));
+        finack.sequenceNumber(rand());
+
+        return LOGGER.traceExit(finack);
+    }
+
+    static TOUSystemPacket createACK(TOUSystemPacket synackOrFinack) {
         LOGGER.traceEntry(()->synackOrFinack);
 
         TCPPacketType type = synackOrFinack.type();
-        assert type == SYNACK || type == FINACK;
         TOUSystemPacket ack = new TOUSystemPacket(synackOrFinack);
         ack.sourceAddress(synackOrFinack.destinationAddress());
         ack.sourcePort(synackOrFinack.destinationPort());
         ack.destinationAddress(synackOrFinack.sourceAddress());
         ack.destinationPort(synackOrFinack.sourcePort());
-        ack.sequenceNumber(synackOrFinack.ackNumber()); // A + 1
-        ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
+        ack.sequenceNumber(synackOrFinack.ackNumber());
+        ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1));
         ack.type(ACK);
 
         return LOGGER.traceExit(ack);
