@@ -50,7 +50,7 @@ class TOUReceiver extends Thread {
                 LOGGER.debug("received {}", ()->TOULog4JUtils.toString(packet));
                 TCPPacket tcpPacket = TOUPacketFactory.decapsulateTCP(packet);
 
-                if (!ignoreDataPackets && tcpPacket.data().length > 0) {
+                if (!ignoreDataPackets && tcpPacket.dataSize() > 0) {
                     LOGGER.trace("this packet contains data, put it in dataMap");
                     TOUSystemPacket key = new TOUSystemPacket();
                     key.sourceAddress(packet.getAddress());

@@ -233,7 +233,7 @@ public class TCPPacketTest {
 
     @Test
     public void capacity() throws Exception {
-        assertEquals(0, empty.capacity());
-        assertEquals(customPacket.bytes().length - customPacket.dataOffset(), customPacket.capacity());
+        assertEquals(0, empty.dataSize());
+        assertEquals(customPacket.bytes().length - customPacket.dataOffset(), customPacket.dataSize());
     }
 }

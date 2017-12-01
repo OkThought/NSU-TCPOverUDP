@@ -138,14 +138,14 @@ public class TCPPacket {
         return bytes;
     }
 
-    public int capacity() {
+    public int dataSize() {
         return bytes.length - dataOffset();
     }
 
     @Override
     public String toString() {
         return String.format("TCPPacket <flags: %h sequence: %d ack: %d src: %d dst: %d data size: %d>",
-                flags(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), capacity());
+                flags(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataSize());
     }
 
     private static int unsignedShortToInt(short value) {
