@@ -25,7 +25,7 @@ class TOUReceiver extends Thread {
 
     private DatagramSocket socket;
     private DatagramPacket packet;
-    private TOUAckHandler ackHandler;
+    private TOUPacketHandler packetHandler;
 
     private volatile boolean ignoreDataPackets = true;
 
@@ -47,17 +47,20 @@ class TOUReceiver extends Thread {
             while (!Thread.interrupted()) {
                 LOGGER.trace("waiting to socket.receive");
                 socket.receive(packet);
-                LOGGER.debug("received {}", ()->TOULog4JUtils.toString(packet));
                 TCPPacket tcpPacket = TOUPacketFactory.decapsulateTCP(packet);
+                LOGGER.debug("received {}", tcpPacket);
 
                 if (!ignoreDataPackets && tcpPacket.dataSize() > 0) {
                     LOGGER.trace("this packet contains data, put it in dataMap");
                     TOUSystemPacket key = new TOUSystemPacket();
                     key.sourceAddress(packet.getAddress());
                     key.sourcePort(tcpPacket.sourcePort());
+                    key.destinationAddress(socket.getLocalAddress());
+                    key.destinationPort(tcpPacket.destinationPort());
                     key.sequenceNumber(tcpPacket.sequenceNumber());
                     LOGGER.debug("put data into dataMap at the key: {}", key);
                     dataMap.put(key, tcpPacket.data());
+                    packetHandler.dataReceived(key);
                 }
 
                 TCPPacketType packetType = TCPPacketType.typeOf(tcpPacket);
@@ -98,8 +101,8 @@ class TOUReceiver extends Thread {
                         key.ackNumber(tcpPacket.ackNumber());
                         break;
                 }
-                if (packetType == ACK && ackHandler != null) {
-                    ackHandler.ackReceived(systemPacket);
+                if (packetType == ACK && packetHandler != null) {
+                    packetHandler.ackReceived(systemPacket);
                 } else {
                     LOGGER.debug("put {} into map with key: {}", systemPacket, key);
                     systemPacketMap.put(key, systemPacket);
@@ -143,7 +146,7 @@ class TOUReceiver extends Thread {
         return "TOUReceiver <" + TOULog4JUtils.toString(socket) + '>';
     }
 
-    public void setAckHandler(TOUAckHandler ackHandler) {
-        this.ackHandler = ackHandler;
+    public void setPacketHandler(TOUPacketHandler packetHandler) {
+        this.packetHandler = packetHandler;
     }
 }
