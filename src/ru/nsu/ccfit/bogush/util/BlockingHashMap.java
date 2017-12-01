@@ -1,5 +1,7 @@
 package ru.nsu.ccfit.bogush.util;
 
+import ru.nsu.ccfit.bogush.tou.TOUSystemPacket;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,5 +35,9 @@ public class BlockingHashMap<K, V> {
         boolean updated = null == map.put(key, value);
         if (updated) this.notifyAll();
         return updated;
+    }
+
+    public synchronized void remove(V packet) {
+        map.values().remove(packet);
     }
 }
