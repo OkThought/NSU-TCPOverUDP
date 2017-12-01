@@ -41,6 +41,15 @@ class TOUSender extends Thread {
     }
 
     @Override
+    public synchronized void start() {
+        LOGGER.traceEntry();
+
+        super.start();
+
+        LOGGER.traceExit();
+    }
+
+    @Override
     public void run() {
         LOGGER.traceEntry();
 

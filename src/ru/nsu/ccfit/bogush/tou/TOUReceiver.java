@@ -31,10 +31,19 @@ class TOUReceiver extends Thread {
 
     TOUReceiver (DatagramSocket socket, int packetSize) {
         super("TOUReceiver");
-        LOGGER.traceEntry();
+        LOGGER.traceEntry("socket: {} packet size: {}", ()->TOULog4JUtils.toString(socket), ()->packetSize);
 
         this.socket = socket;
         packet = new DatagramPacket(new byte[packetSize], packetSize);
+
+        LOGGER.traceExit();
+    }
+
+    @Override
+    public synchronized void start() {
+        LOGGER.traceEntry();
+
+        super.start();
 
         LOGGER.traceExit();
     }
