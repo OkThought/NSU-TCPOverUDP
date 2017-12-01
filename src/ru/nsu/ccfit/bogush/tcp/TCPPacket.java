@@ -150,8 +150,14 @@ public class TCPPacket {
 
     @Override
     public String toString() {
-        return String.format("TCPPacket <flags: %h sequence: %d ack: %d src: %d dst: %d data size: %d>",
-                flags(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataSize());
+        String type;
+        try {
+            type = String.valueOf(TCPPacketType.typeOf(this));
+        } catch (TCPUnknownPacketTypeException ignored) {
+            type = "UNKNOWN";
+        }
+        return String.format("TCPPacket <%s sequence: %d ack: %d src: %d dst: %d data size: %d>",
+                type, sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataSize());
     }
 
     private static int unsignedShortToInt(short value) {
