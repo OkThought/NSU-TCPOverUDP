@@ -144,8 +144,8 @@ public class TCPPacket {
 
     @Override
     public String toString() {
-        return String.format("TCPPacket <flags: %h sequence: %d ack: %d src: %d dst: %d>",
-                flags(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort());
+        return String.format("TCPPacket <flags: %h sequence: %d ack: %d src: %d dst: %d data size: %d>",
+                flags(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), capacity());
     }
 
     private static int unsignedShortToInt(short value) {
