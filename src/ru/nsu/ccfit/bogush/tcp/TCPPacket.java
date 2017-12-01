@@ -32,7 +32,7 @@ public class TCPPacket {
     }
 
     public TCPPacket (TCPPacket other) {
-        this(other.bytes);
+        this(other.bytes.clone());
     }
 
     public TCPPacket (byte[] bytes) {
