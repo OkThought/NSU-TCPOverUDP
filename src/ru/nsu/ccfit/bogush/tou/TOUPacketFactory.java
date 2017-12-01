@@ -1,14 +1,24 @@
 package ru.nsu.ccfit.bogush.tou;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import ru.nsu.ccfit.bogush.tcp.TCPPacket;
+import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
 import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.*;
 
 class TOUPacketFactory {
+    private static final Logger LOGGER = LogManager.getLogger("PacketFactory");
+
+    static {
+        TOULog4JUtils.initIfNotInitYet();
+    }
+
     static DatagramPacket encapsulateIntoUDP (TCPPacket packet, InetAddress destinationAddress) {
         byte[] data = packet.bytes();
         return new DatagramPacket(data, data.length, destinationAddress, packet.destinationPort());
@@ -24,7 +34,7 @@ class TOUPacketFactory {
     }
 
     static TCPPacket decapsulateTCP (DatagramPacket packet) {
-        TCPPacket p = new TCPPacket(packet.getData());
+        TCPPacket p = new TCPPacket(packet.getData(), packet.getOffset(), packet.getLength());
         p.sourcePort(packet.getPort());
         return p;
     }
@@ -56,6 +66,59 @@ class TOUPacketFactory {
         return new TOUPacket(p, systemPacket.destinationAddress(), systemPacket.sourceAddress());
     }
 
+    static TOUSystemPacket createSynOrFin(TCPPacketType type, InetAddress srcAddr, int srcPort, InetAddress dstAddr, int dstPort) {
+        LOGGER.traceEntry("create {} source: {}:{} destination: {}:{}", type, srcAddr, srcPort, dstAddr, dstPort);
+
+        assert type == SYN || type == FIN;
+
+        return LOGGER.traceExit(new TOUSystemPacket(type, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0));
+    }
+
+    static TOUSystemPacket createSynackOrFinack(TCPPacketType type, InetAddress localAddress, int localPort, TOUSystemPacket synOrFin) {
+        LOGGER.traceEntry("create {}", type);
+
+        assert type == SYNACK || type == FINACK;
+        TOUSystemPacket synackOrFinack = new TOUSystemPacket(synOrFin);
+        synackOrFinack.sourceAddress(localAddress);
+        synackOrFinack.sourcePort(localPort);
+        synackOrFinack.destinationAddress(synOrFin.sourceAddress());
+        synackOrFinack.destinationPort(synOrFin.sourcePort());
+        synackOrFinack.type(type);
+        synackOrFinack.ackNumber((short) (synOrFin.sequenceNumber() + 1));
+        synackOrFinack.sequenceNumber(rand());
+
+        return LOGGER.traceExit(synackOrFinack);
+    }
+
+    static TOUSystemPacket createAck(TOUSystemPacket synackOrFinack) {
+        LOGGER.traceEntry(()->synackOrFinack);
+
+        TCPPacketType type = synackOrFinack.type();
+        assert type == SYNACK || type == FINACK;
+        TOUSystemPacket ack = new TOUSystemPacket(synackOrFinack);
+        ack.sourceAddress(synackOrFinack.destinationAddress());
+        ack.sourcePort(synackOrFinack.destinationPort());
+        ack.destinationAddress(synackOrFinack.sourceAddress());
+        ack.destinationPort(synackOrFinack.sourcePort());
+        ack.sequenceNumber(synackOrFinack.ackNumber()); // A + 1
+        ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
+
+        return LOGGER.traceExit(ack);
+    }
+
+    static TOUSystemPacket createAckToDataPacket(TOUSystemPacket dataKeyPacket) {
+        LOGGER.traceEntry(()->dataKeyPacket);
+
+        TOUSystemPacket ack = new TOUSystemPacket();
+        ack.destinationAddress(dataKeyPacket.sourceAddress());
+        ack.destinationPort(dataKeyPacket.sourcePort());
+        ack.sourceAddress(dataKeyPacket.destinationAddress());
+        ack.sourcePort(dataKeyPacket.destinationPort());
+        ack.ackNumber(dataKeyPacket.sequenceNumber());
+        ack.type(ACK);
+
+        return LOGGER.traceExit(ack);
+    }
     static boolean canMerge(TOUPacket dataPacket, TOUSystemPacket systemPacket) {
         if (dataPacket.typeByte() != 0) return false;
         if (dataPacket.destinationPort() != systemPacket.destinationPort()) return false;
@@ -93,5 +156,10 @@ class TOUPacketFactory {
     static void unmergeSystemPacket(TOUPacket dataPacket) throws TCPUnknownPacketTypeException {
         dataPacket.type(ORDINARY);
         dataPacket.ackNumber((short) 0);
+    }
+
+    private static short rand() {
+        LOGGER.traceEntry();
+        return LOGGER.traceExit((short) ThreadLocalRandom.current().nextInt());
     }
 }
