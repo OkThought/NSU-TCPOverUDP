@@ -18,30 +18,28 @@ public class TOUServerSocket {
     static {
         TOULog4JUtils.initIfNotInitYet();
     }
-    private static final Logger logger = LogManager.getLogger("ServerSocket");
+    private static final Logger LOGGER = LogManager.getLogger("ServerSocket");
 
     private final TOUConnectionManager connectionManager = new TOUConnectionManager();
     private DatagramSocket socket;
 
-    public TOUServerSocket() throws IOException {
-        this(0);
-    }
+    public TOUServerSocket() {}
 
     public TOUServerSocket(int port) throws IOException {
-        logger.traceEntry();
+        LOGGER.traceEntry();
 
         bind(new InetSocketAddress(InetAddress.getLocalHost(), port));
 
-        logger.traceExit();
+        LOGGER.traceExit();
     }
 
     public boolean isBound() {
-        logger.traceEntry();
-        return logger.traceExit(socket != null);
+        LOGGER.traceEntry();
+        return LOGGER.traceExit(socket != null);
     }
 
     public void bind(SocketAddress socketAddress) throws IOException {
-        logger.traceEntry(() -> TOULog4JUtils.toString(socketAddress));
+        LOGGER.traceEntry(() -> TOULog4JUtils.toString(socketAddress));
 
         checkBound(false);
         socket = new DatagramSocket(socketAddress);
@@ -50,28 +48,28 @@ public class TOUServerSocket {
         connectionManager.receiver(new TOUReceiver(socket, MAX_PACKET_SIZE));
         connectionManager.listen();
 
-        logger.traceExit();
+        LOGGER.traceExit();
     }
 
     public TOUSocket accept() throws IOException {
-        logger.traceEntry();
+        LOGGER.traceEntry();
 
         checkBound(true);
         try {
-            return logger.traceExit(connectionManager.accept());
+            return LOGGER.traceExit(connectionManager.accept());
         } catch (TCPUnknownPacketTypeException | InterruptedException e) {
-            logger.catching(e);
-            throw logger.throwing(new IOException(e));
+            LOGGER.catching(e);
+            throw LOGGER.throwing(new IOException(e));
         }
     }
 
     private void checkBound(boolean shouldBeBound) throws IOException {
-        logger.traceEntry(String.valueOf(shouldBeBound));
+        LOGGER.traceEntry(String.valueOf(shouldBeBound));
 
         if (isBound() != shouldBeBound) {
-            throw logger.throwing(new IOException("Socket is " + (isBound() ? "" : "not ") + "bound"));
+            throw LOGGER.throwing(new IOException("Socket is " + (isBound() ? "" : "not ") + "bound"));
         }
 
-        logger.traceExit();
+        LOGGER.traceExit();
     }
 }
