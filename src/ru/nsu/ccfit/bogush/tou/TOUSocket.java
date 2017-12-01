@@ -20,7 +20,7 @@ public class TOUSocket {
     static final int MAX_PACKET_SIZE = MAX_DATA_SIZE + TCPPacket.HEADER_SIZE;
     static final int QUEUE_CAPACITY = 512;
     static final int TIMEOUT = 1000;
-    private final TOUConnectionManager connectionManager = new TOUConnectionManager();
+    private final TOUConnectionManager connectionManager;
     private DatagramSocket socket;
     private InetAddress address;
     private int port;
@@ -38,9 +38,17 @@ public class TOUSocket {
         LOGGER.traceEntry(() -> TOULog4JUtils.toString(socketAddress));
 
         socket = new DatagramSocket(socketAddress);
+        connectionManager = new TOUConnectionManager();
         connectionManager.bind(socket);
 
         LOGGER.traceExit();
+    }
+
+    TOUSocket(DatagramSocket socket, TOUConnectionManager connectionManager, InetAddress address, int port) {
+        this.socket = socket;
+        this.connectionManager = connectionManager;
+        this.address = address;
+        this.port = port;
     }
 
     public boolean isBound() {

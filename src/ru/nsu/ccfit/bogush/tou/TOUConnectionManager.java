@@ -136,7 +136,7 @@ class TOUConnectionManager implements TOUPacketHandler {
         LOGGER.info("Successfully accepted connection from {}:{}", ack.sourceAddress(), ack.sourcePort());
         LOGGER.info("\n\n");
 
-        return LOGGER.traceExit(new TOUSocket(syn.sourceAddress(), syn.sourcePort()));
+        return LOGGER.traceExit(new TOUSocket(datagramSocket, this, syn.sourceAddress(), syn.sourcePort()));
     }
 
     void close() {
