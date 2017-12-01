@@ -2,14 +2,12 @@ package ru.nsu.ccfit.bogush.tou;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.nsu.ccfit.bogush.tcp.TCPPacket;
 import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
 import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.*;
 import static ru.nsu.ccfit.bogush.tou.TOUConnectionState.*;
@@ -37,7 +35,7 @@ import static ru.nsu.ccfit.bogush.tou.TOUConnectionState.*;
  *      ack number set to B+1
  *      and sequence number set to A+1
  */
-class TOUConnectionManager implements TOUAckHandler {
+class TOUConnectionManager implements TOUPacketHandler {
     static {
         TOULog4JUtils.initIfNotInitYet();
     }
@@ -113,7 +111,8 @@ class TOUConnectionManager implements TOUAckHandler {
         state = SYN_SENT;
 
         sendACK(synack);
-        receiver.setAckHandler(this);
+        receiver.ignoreDataPackets(false);
+        receiver.setPacketHandler(this);
         state = ESTABLISHED;
 
         LOGGER.info("Successfully connected to {}:{}", serverAddress, serverPort);
@@ -131,8 +130,8 @@ class TOUConnectionManager implements TOUAckHandler {
         TOUSystemPacket syn = receiveSynOrFin(SYN, datagramSocket.getLocalAddress(), datagramSocket.getLocalPort());
         state = SYN_RECEIVED;
 
+        receiver.setPacketHandler(this);
         TOUSystemPacket ack = sendSynackOrFinack(SYNACK, syn, datagramSocket.getLocalPort());
-        receiver.setAckHandler(this);
         state = ESTABLISHED;
 
         LOGGER.info("Successfully accepted connection from {}:{}", ack.sourceAddress(), ack.sourcePort());
@@ -187,7 +186,7 @@ class TOUConnectionManager implements TOUAckHandler {
         return LOGGER.traceExit(receiver.receiveSystemPacket(expectedPacket));
     }
 
-    private TOUSystemPacket receiveACK(TOUSystemPacket synOrFin, TOUSystemPacket synackOrFinack)
+    private TOUSystemPacket receiveAck(TOUSystemPacket synOrFin, TOUSystemPacket synackOrFinack)
             throws InterruptedException {
         LOGGER.traceEntry();
 
@@ -207,7 +206,7 @@ class TOUConnectionManager implements TOUAckHandler {
                 type, sourceAddress, sourcePort, destinationAddress, destinationPort);
 
         assert type == SYN || type == FIN;
-        TOUSystemPacket synOrFin = createSynOrFin(type, sourceAddress, sourcePort, destinationAddress, destinationPort);
+        TOUSystemPacket synOrFin = TOUPacketFactory.createSynOrFin(type, sourceAddress, sourcePort, destinationAddress, destinationPort);
         sender.putInQueue(synOrFin);
         TOUSystemPacket synackOrFinack = receiveSynackOrFinack(type == SYN ? SYNACK : FINACK, synOrFin);
         sender.removeFromQueue(synOrFin);
@@ -220,9 +219,10 @@ class TOUConnectionManager implements TOUAckHandler {
         LOGGER.traceEntry("send {} localPort: {}", type, localPort);
 
         assert type == SYNACK || type == FINACK;
-        TOUSystemPacket synackOrFinack = createSynackOrFinack(type, datagramSocket.getLocalAddress(), localPort, synOrFin);
+        TOUSystemPacket synackOrFinack = TOUPacketFactory.createSynackOrFinack(type, datagramSocket.getLocalAddress(), localPort, synOrFin);
         sender.putInQueue(synackOrFinack);
-        TOUSystemPacket ack = receiveACK(synOrFin, synackOrFinack);
+        receiver.ignoreDataPackets(type == FINACK);
+        TOUSystemPacket ack = receiveAck(synOrFin, synackOrFinack);
         sender.removeFromQueue(synackOrFinack);
 
         return LOGGER.traceExit(ack);
@@ -234,7 +234,7 @@ class TOUConnectionManager implements TOUAckHandler {
 
         TCPPacketType type = synackOrFinack.type();
         assert type == SYNACK || type == FINACK;
-        TOUSystemPacket ack = createACK(synackOrFinack);
+        TOUSystemPacket ack = TOUPacketFactory.createAck(synackOrFinack);
 
         sender.sendOnce(ack);
 //        sender.putInQueue(ack);
@@ -255,65 +255,24 @@ class TOUConnectionManager implements TOUAckHandler {
         LOGGER.traceExit();
     }
 
-    private static short rand() {
-        LOGGER.traceEntry();
-        return LOGGER.traceExit((short) ThreadLocalRandom.current().nextInt());
-    }
-
-    private static void swapSourceAndDestination(TCPPacket packet) {
-        int dstPort = packet.sourcePort();
-        int srcPort = packet.destinationPort();
-        packet.destinationPort(dstPort);
-        packet.sourcePort(srcPort);
-    }
-
-    private static TOUSystemPacket createSynOrFin(TCPPacketType type, InetAddress srcAddr, int srcPort, InetAddress dstAddr, int dstPort) {
-        LOGGER.traceEntry("create {} source: {}:{} destination: {}:{}", type, srcAddr, srcPort, dstAddr, dstPort);
-
-        assert type == SYN || type == FIN;
-
-        return LOGGER.traceExit(new TOUSystemPacket(type, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0));
-    }
-
-    private static TOUSystemPacket createSynackOrFinack(TCPPacketType type, InetAddress localAddress, int localPort, TOUSystemPacket synOrFin) {
-        LOGGER.traceEntry("create {}", type);
-
-        assert type == SYNACK || type == FINACK;
-        TOUSystemPacket synackOrFinack = new TOUSystemPacket(synOrFin);
-        synackOrFinack.sourceAddress(localAddress);
-        synackOrFinack.sourcePort(localPort);
-        synackOrFinack.destinationAddress(synOrFin.sourceAddress());
-        synackOrFinack.destinationPort(synOrFin.sourcePort());
-        synackOrFinack.type(type);
-        synackOrFinack.ackNumber((short) (synOrFin.sequenceNumber() + 1));
-        synackOrFinack.sequenceNumber(rand());
-
-        return LOGGER.traceExit(synackOrFinack);
-    }
-
-    private static TOUSystemPacket createACK(TOUSystemPacket synackOrFinack) {
-        LOGGER.traceEntry();
-
-        TCPPacketType type = synackOrFinack.type();
-        assert type == SYNACK || type == FINACK;
-        TOUSystemPacket ack = new TOUSystemPacket(synackOrFinack);
-        ack.sourceAddress(synackOrFinack.destinationAddress());
-        ack.sourcePort(synackOrFinack.destinationPort());
-        ack.destinationAddress(synackOrFinack.sourceAddress());
-        ack.destinationPort(synackOrFinack.sourcePort());
-        ack.sequenceNumber(synackOrFinack.ackNumber()); // A + 1
-        ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
-
-        return LOGGER.traceExit(ack);
-    }
-
     @Override
     public void ackReceived(TOUSystemPacket packet) {
         LOGGER.traceEntry("{}", packet);
 
-        checkState(ESTABLISHED);
+        LOGGER.debug("Handle ACK {}", packet.ackNumber());
         TOUPacket touPacket = TOUPacketFactory.createTOUPacketByAck(packet);
         sender.removeFromQueue(touPacket);
+
+        LOGGER.traceExit();
+    }
+
+    @Override
+    public void dataReceived(TOUSystemPacket dataKeyPacket) throws IOException {
+        LOGGER.traceEntry("{}", dataKeyPacket);
+
+        LOGGER.debug("Handle data packet of sequence {}", dataKeyPacket.sequenceNumber());
+        TOUSystemPacket ack = TOUPacketFactory.createAckToDataPacket(dataKeyPacket);
+        sender.sendOnce(ack);
 
         LOGGER.traceExit();
     }
