@@ -77,6 +77,7 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
     }
 
     private void incrementSequenceNumber() {
+        LOGGER.trace("Increment sequenceNumber: {}->{}", sequenceNumber, (short) (sequenceNumber + 1));
         ++sequenceNumber;
     }
 
@@ -89,6 +90,8 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
 
     @Override
     public TOUPacket flushIntoPacket() {
+        LOGGER.traceEntry();
+
         byte[] data;
         synchronized (buffer) {
             int size = buffer.position();
@@ -98,6 +101,7 @@ class TOUSocketOutputStream extends OutputStream implements TOUBufferHolder {
         }
         TOUPacket touPacket = wrap(data);
         incrementSequenceNumber();
-        return touPacket;
+
+        return LOGGER.traceExit(touPacket);
     }
 }
