@@ -12,7 +12,7 @@ import java.net.*;
 
 import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.*;
 
-class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
+class TOUSocketImpl extends SocketImpl {
     static final int MAX_DATA_SIZE = 1024; // bytes
     static final int MAX_PACKET_SIZE = MAX_DATA_SIZE + TCPPacket.HEADER_SIZE;
     static final int QUEUE_CAPACITY = 512;
@@ -23,14 +23,14 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
     }
     private static final Logger LOGGER = LogManager.getLogger(TOUSocketImpl.class.getSimpleName());
 
-    private DatagramSocket datagramSocket;
+    DatagramSocket datagramSocket;
     private InetAddress localAddress;
-    private TOUSender sender;
-    private TOUReceiver receiver;
-    private TOUSocketOutputStream outputStream = null;
-    private TOUSocketInputStream inputStream = null;
+    TOUSender sender;
+    TOUReceiver receiver;
+    TOUSocketOutputStream outputStream = null;
+    TOUSocketInputStream inputStream = null;
 
-    public TOUSocketImpl() {
+    TOUSocketImpl() {
         LOGGER.traceEntry();
         try {
             this.localAddress = InetAddress.getLocalHost();
@@ -39,6 +39,22 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
             e.printStackTrace();
         }
         LOGGER.traceExit();
+    }
+
+    InetAddress localAddress() {
+        return localAddress;
+    }
+
+    int localPort() {
+        return localport;
+    }
+
+    InetAddress address() {
+        return address;
+    }
+
+    int port() {
+        return port;
     }
 
     @Override
@@ -59,8 +75,7 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
 
         bind(localAddress, 0);
 
-        sender = new TOUSender(datagramSocket, QUEUE_CAPACITY, TIMEOUT);
-        receiver = new TOUReceiver(datagramSocket, MAX_PACKET_SIZE);
+        initSenderAndReceiver();
 
         this.sender.start();
         this.receiver.start();
@@ -69,7 +84,6 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
         TOUSystemPacket synack = receiveSYNACK(syn);
         sendACK(synack);
         this.receiver.ignoreDataPackets(false);
-        this.receiver.setPacketHandler(this);
 
         LOGGER.info("================ Successfully connected to {}:{} ================", address, port);
 
@@ -108,8 +122,7 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
     protected void listen(int backlog) throws IOException {
         LOGGER.traceEntry("backlog: {}", backlog);
 
-        sender = new TOUSender(datagramSocket, QUEUE_CAPACITY, TIMEOUT);
-        receiver = new TOUReceiver(datagramSocket, MAX_PACKET_SIZE);
+        initSenderAndReceiver();
 
         LOGGER.traceExit();
     }
@@ -128,7 +141,6 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
 
         TOUSystemPacket syn = receiveSYN(datagramSocket.getLocalAddress(), datagramSocket.getLocalPort());
 
-        receiver.setPacketHandler(this);
         TOUSystemPacket synack = sendSYNACK(syn);
         receiveACK(syn, synack);
 
@@ -151,7 +163,7 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
     protected InputStream getInputStream() throws IOException {
         LOGGER.traceEntry();
         if (inputStream == null) {
-            inputStream = new TOUSocketInputStream(receiver, address, port);
+            inputStream = new TOUSocketInputStream(this);
         }
         return LOGGER.traceExit(inputStream);
     }
@@ -160,7 +172,7 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
     protected OutputStream getOutputStream() throws IOException {
         LOGGER.traceEntry();
         if (outputStream == null) {
-            outputStream = new TOUSocketOutputStream(sender, localAddress, localport, address, port, MAX_DATA_SIZE);
+            outputStream = new TOUSocketOutputStream(this);
         }
         return LOGGER.traceExit(outputStream);
     }
@@ -187,6 +199,38 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
         LOGGER.traceExit();
     }
 
+    boolean isConnected() {
+        return address != null;
+    }
+
+    void ackReceived(TOUSystemPacket packet) {
+        LOGGER.traceEntry("system packet: {}", packet);
+
+        if (isConnected()) {
+            LOGGER.debug("Handle ACK {}", packet.ackNumber());
+            TOUPacket touPacket = TOUPacketFactory.createTOUPacketByAck(packet);
+            this.receiver.deleteSystemPacketFromMap(packet);
+            sender.removeFromQueue(touPacket);
+        }
+
+        LOGGER.traceExit();
+    }
+
+    void dataReceived(TOUSystemPacket key) throws IOException {
+        LOGGER.traceEntry("key: {}", key);
+
+        /*
+         * ignore data when connection is not established yet
+         */
+        if (isConnected()) {
+            LOGGER.debug("Handle data packet of sequence {}", key.sequenceNumber());
+            TOUSystemPacket ack = TOUPacketFactory.createAckToDataPacket(key);
+            this.sender.sendOnce(ack);
+        }
+
+        LOGGER.traceExit();
+    }
+
     @Override
     public void setOption(int optID, Object value) throws SocketException {
         LOGGER.traceEntry();
@@ -199,27 +243,9 @@ class TOUSocketImpl extends SocketImpl implements TOUPacketHandler {
         return LOGGER.traceExit("{}", null);
     }
 
-    @Override
-    public void ackReceived(TOUSystemPacket packet) {
-        LOGGER.traceEntry("{}", packet);
-
-        LOGGER.debug("Handle ACK {}", packet.ackNumber());
-        TOUPacket touPacket = TOUPacketFactory.createTOUPacketByAck(packet);
-        this.receiver.deleteSystemPacketFromMap(packet);
-        sender.removeFromQueue(touPacket);
-
-        LOGGER.traceExit();
-    }
-
-    @Override
-    public void dataReceived(TOUSystemPacket dataKeyPacket) throws IOException {
-        LOGGER.traceEntry("{}", dataKeyPacket);
-
-        LOGGER.debug("Handle data packet of sequence {}", dataKeyPacket.sequenceNumber());
-        TOUSystemPacket ack = TOUPacketFactory.createAckToDataPacket(dataKeyPacket);
-        this.sender.sendOnce(ack);
-
-        LOGGER.traceExit();
+    private void initSenderAndReceiver() throws IOException {
+        sender = new TOUSender(this);
+        receiver = new TOUReceiver(this);
     }
 
     private TOUSystemPacket receiveSYN(InetAddress localAddress, int localPort) throws IOException {
