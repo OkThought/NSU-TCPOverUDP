@@ -23,18 +23,19 @@ class TOUReceiver extends Thread {
     private final BlockingHashMap<TOUSystemPacket, byte[]> dataMap = new BlockingHashMap<>();
     private final BlockingHashMap<TOUSystemPacket, TOUSystemPacket> systemPacketMap = new BlockingHashMap<>();
 
+    private final TOUSocketImpl impl;
     private DatagramSocket socket;
     private DatagramPacket packet;
-    private TOUPacketHandler packetHandler;
 
     private volatile boolean ignoreDataPackets = true;
 
-    TOUReceiver (DatagramSocket socket, int packetSize) {
+    TOUReceiver (TOUSocketImpl impl) {
         super("TOUReceiver");
-        LOGGER.traceEntry("socket: {} packet size: {}", ()->TOULog4JUtils.toString(socket), ()->packetSize);
+        LOGGER.traceEntry("impl: ", ()->impl);
 
-        this.socket = socket;
-        packet = new DatagramPacket(new byte[packetSize], packetSize);
+        this.impl = impl;
+        this.socket = impl.datagramSocket;
+        packet = new DatagramPacket(new byte[TOUSocketImpl.MAX_PACKET_SIZE], TOUSocketImpl.MAX_PACKET_SIZE);
 
         LOGGER.traceExit();
     }
@@ -64,7 +65,7 @@ class TOUReceiver extends Thread {
                     TOUSystemPacket key = TOUPacketFactory.createDataKeyPacket(tcpPacket, packet, socket);
                     LOGGER.debug("put data into dataMap at the key: {}", key);
                     dataMap.put(key, tcpPacket.data());
-                    packetHandler.dataReceived(key);
+                    impl.dataReceived(key);
                 }
 
                 TCPPacketType packetType = TCPPacketType.typeOf(tcpPacket);
@@ -107,8 +108,8 @@ class TOUReceiver extends Thread {
                 }
                 LOGGER.debug("put {} into map with key: {}", systemPacket, key);
                 systemPacketMap.put(key, systemPacket);
-                if (packetType == ACK && packetHandler != null) {
-                    packetHandler.ackReceived(systemPacket);
+                if (packetType == ACK) {
+                    impl.ackReceived(systemPacket);
                 }
             }
         } catch (IOException | TCPUnknownPacketTypeException e) {
@@ -133,6 +134,8 @@ class TOUReceiver extends Thread {
         TOUSystemPacket key = new TOUSystemPacket();
         key.sourceAddress(sourceAddress);
         key.sourcePort(sourcePort);
+        key.destinationAddress(socket.getLocalAddress());
+        key.destinationPort(socket.getLocalPort());
         key.sequenceNumber(sequenceNumber);
 
         return LOGGER.traceExit(dataMap.take(key));
@@ -142,10 +145,6 @@ class TOUReceiver extends Thread {
         LOGGER.traceEntry("key: {}", systemPacketKey);
 
         return LOGGER.traceExit(systemPacketMap.take(systemPacketKey));
-    }
-
-    void setPacketHandler(TOUPacketHandler packetHandler) {
-        this.packetHandler = packetHandler;
     }
 
     void deleteSystemPacketFromMap(TOUSystemPacket packet) {
