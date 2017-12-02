@@ -14,18 +14,21 @@ class TOUSocketInputStream extends InputStream {
     }
     private static final Logger LOGGER = LogManager.getLogger("TOUSocketInputStream");
 
+    private final TOUSocketImpl impl;
     private final TOUReceiver receiver;
     private final InetAddress sourceAddress;
     private final int sourcePort;
     private ByteBuffer buffer;
     private short sequenceNumber = 0;
+    private boolean eof = false;
 
-    TOUSocketInputStream(TOUReceiver receiver, InetAddress sourceAddress, int sourcePort) {
-        LOGGER.traceEntry("receiver: {} sender address: {}:{}", ()->receiver, ()-> sourceAddress, ()-> sourcePort);
+    TOUSocketInputStream(TOUSocketImpl impl) {
+        LOGGER.traceEntry("impl: {}", ()->impl);
 
-        this.receiver = receiver;
-        this.sourceAddress = sourceAddress;
-        this.sourcePort = sourcePort;
+        this.impl = impl;
+        this.receiver = impl.receiver;
+        this.sourceAddress = impl.localAddress();
+        this.sourcePort = impl.localPort();
 
         LOGGER.traceExit();
     }
@@ -34,15 +37,32 @@ class TOUSocketInputStream extends InputStream {
     public int read () throws IOException {
         LOGGER.traceEntry();
 
-        // TODO: 12/1/17 return -1 on EOF
+        if (eof) {
+            return -1;
+        }
+
         try {
             if (buffer == null) {
                 buffer = ByteBuffer.wrap(receiver.takeData(sourceAddress, sourcePort, sequenceNumber++));
             }
-            return LOGGER.traceExit(buffer.get());
         } catch (InterruptedException e) {
             LOGGER.catching(e);
-            throw LOGGER.throwing(new IOException(e));
+//            throw LOGGER.throwing(new IOException(e));
         }
+
+        if (buffer.hasRemaining()) {
+            return LOGGER.traceExit(buffer.get());
+        }
+
+        /*
+         * If we get here we are at EOF, the socket has been closed,
+         * or the connection has been reset.
+         */
+
+        eof = true;
+
+        return -1;
     }
+
+
 }
