@@ -7,9 +7,6 @@ import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -20,22 +17,21 @@ class TOUSender extends Thread {
     }
     private static final Logger LOGGER = LogManager.getLogger("TOUSender");
 
+    private final TOUSocketImpl impl;
     private final DatagramSocket udpSocket;
     private final BlockingQueue<TOUPacket> dataPackets;
     private final BlockingQueue<TOUSystemPacket> systemPackets;
-    private final ArrayList<TOUBufferHolder> bufferHolders;
     private final int timeout;
 
-    TOUSender(DatagramSocket udpSocket, int queueCapacity, int timeout) throws IOException {
+    TOUSender(TOUSocketImpl impl) throws IOException {
         super("TOUSender");
-        LOGGER.traceEntry("socket: {} queue capacity: {} timeout: {}",
-                ()->TOULog4JUtils.toString(udpSocket), ()->queueCapacity, ()->timeout);
+        LOGGER.traceEntry("impl: {}", ()->impl);
 
-        this.udpSocket = udpSocket;
-        dataPackets = new ArrayBlockingQueue<>(queueCapacity);
-        systemPackets = new ArrayBlockingQueue<>(queueCapacity);
-        bufferHolders = new ArrayList<>();
-        this.timeout = timeout;
+        this.impl = impl;
+        this.udpSocket = impl.datagramSocket;
+        dataPackets = new ArrayBlockingQueue<>(TOUSocketImpl.QUEUE_CAPACITY);
+        systemPackets = new ArrayBlockingQueue<>(TOUSocketImpl.QUEUE_CAPACITY);
+        this.timeout = TOUSocketImpl.TIMEOUT;
 
         LOGGER.traceExit();
     }
@@ -120,14 +116,6 @@ class TOUSender extends Thread {
         LOGGER.traceExit();
     }
 
-    void addBufferHolder(TOUBufferHolder bufferHolder) {
-        LOGGER.traceEntry("bufferHolder: ", ()->bufferHolder);
-
-        bufferHolders.add(bufferHolder);
-
-        LOGGER.traceExit();
-    }
-
     private TOUSystemPacket peekSystemPacketIfQueueIsNotEmpty() {
         LOGGER.traceEntry();
 
@@ -151,7 +139,7 @@ class TOUSender extends Thread {
         if (dataPacket != null) LOGGER.debug("polled {}", dataPacket);
 
         if (dataPacket == null) {
-            dataPacket = flushBiggestAvailableBuffer();
+            dataPacket = flushBufferIfAvailable();
         }
 
         if (dataPacket != null) {
@@ -162,13 +150,12 @@ class TOUSender extends Thread {
         LOGGER.traceExit();
     }
 
-    private TOUPacket flushBiggestAvailableBuffer() {
+    private TOUPacket flushBufferIfAvailable() throws IOException {
         LOGGER.traceEntry();
 
-        Optional<TOUBufferHolder> b = bufferHolders.stream().max(Comparator.comparingInt(TOUBufferHolder::available));
         TOUPacket result = null;
-        if (b.isPresent() && b.get().available() > 0) {
-            result = b.get().flushIntoPacket();
+        if (impl.outputStream != null && impl.outputStream.available() > 0) {
+            result = impl.outputStream.flushIntoPacket();
         }
 
         return LOGGER.traceExit(result);
