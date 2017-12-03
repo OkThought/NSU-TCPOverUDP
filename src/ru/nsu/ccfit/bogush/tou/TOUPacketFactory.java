@@ -7,7 +7,6 @@ import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
 import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
 
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -150,10 +149,6 @@ class TOUPacketFactory {
         return false;
     }
 
-    static boolean isSystemPacket(TOUPacket dataPacket) {
-        return dataPacket.typeByte() != 0;
-    }
-
     static boolean isMergedWithSystemPacket(TOUPacket dataPacket, TOUSystemPacket systemPacket) throws TCPUnknownPacketTypeException {
         switch (dataPacket.type()) {
             case ACK: return dataPacket.ackNumber() == systemPacket.systemMessage();
@@ -180,13 +175,53 @@ class TOUPacketFactory {
         return LOGGER.traceExit((short) ThreadLocalRandom.current().nextInt());
     }
 
-    public static TOUSystemPacket createDataKeyPacket(TCPPacket tcpPacket, DatagramPacket packet, DatagramSocket socket) {
+    static TOUSystemPacket createDataKeyPacket(TCPPacket packet, InetAddress srcAddr, InetAddress dstAddr) {
         TOUSystemPacket key = new TOUSystemPacket();
-        key.sourceAddress(packet.getAddress());
-        key.sourcePort(tcpPacket.sourcePort());
-        key.destinationAddress(socket.getLocalAddress());
+        key.sourceAddress(srcAddr);
+        key.sourcePort(packet.sourcePort());
+        key.destinationAddress(dstAddr);
+        key.destinationPort(packet.destinationPort());
+        key.sequenceNumber(packet.sequenceNumber());
+        return key;
+    }
+
+    static TOUSystemPacket createSystemPacket(TCPPacket tcpPacket, TCPPacketType type, InetAddress srcAddr, InetAddress dstAddr) {
+        TOUSystemPacket systemPacket = new TOUSystemPacket(type);
+        systemPacket.sourceAddress(srcAddr);
+        systemPacket.sourcePort(tcpPacket.sourcePort());
+        systemPacket.destinationAddress(dstAddr);
+        systemPacket.destinationPort(tcpPacket.destinationPort());
+        systemPacket.sequenceNumber(tcpPacket.sequenceNumber());
+        systemPacket.ackNumber(tcpPacket.ackNumber());
+        return systemPacket;
+    }
+
+    static TOUSystemPacket createSystemKeyPacket(TCPPacket tcpPacket, TCPPacketType type, InetAddress srcAddr, InetAddress dstAddr) {
+        TOUSystemPacket key = new TOUSystemPacket(type);
+        key.destinationAddress(dstAddr);
         key.destinationPort(tcpPacket.destinationPort());
-        key.sequenceNumber(tcpPacket.sequenceNumber());
+        switch (type) {
+            case ACK:
+                key.sourceAddress(srcAddr);
+                key.sourcePort(tcpPacket.sourcePort());
+                key.sequenceNumber(tcpPacket.sequenceNumber());
+                key.ackNumber(tcpPacket.ackNumber());
+                break;
+            case SYN:
+                break;
+            case SYNACK:
+                key.sourceAddress(srcAddr);
+                key.sourcePort(tcpPacket.sourcePort());
+                key.ackNumber(tcpPacket.ackNumber());
+                break;
+            case FIN:
+                break;
+            case FINACK:
+                key.sourceAddress(srcAddr);
+                key.sourcePort(tcpPacket.sourcePort());
+                key.ackNumber(tcpPacket.ackNumber());
+                break;
+        }
         return key;
     }
 }
