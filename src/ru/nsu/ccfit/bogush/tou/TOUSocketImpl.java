@@ -16,15 +16,16 @@ class TOUSocketImpl extends SocketImpl {
     static final int MAX_DATA_SIZE = 1024; // bytes
     static final int MAX_PACKET_SIZE = MAX_DATA_SIZE + TCPPacket.HEADER_SIZE;
     static final int QUEUE_CAPACITY = 512;
-    static final int TIMEOUT = 1000;
+    static final int DATA_PACKET_POLL_TIMEOUT = 1000;
+    static final int SYSTEM_PACKET_POLL_TIMEOUT = 1000;
 
     static {
         TOULog4JUtils.initIfNotInitYet();
     }
     private static final Logger LOGGER = LogManager.getLogger(TOUSocketImpl.class.getSimpleName());
 
-    DatagramSocket datagramSocket;
     private InetAddress localAddress;
+    DatagramSocket datagramSocket;
     TOUSender sender;
     TOUReceiver receiver;
     TOUSocketOutputStream outputStream = null;

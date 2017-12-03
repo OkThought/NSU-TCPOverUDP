@@ -21,7 +21,8 @@ class TOUSender extends Thread {
     private final DatagramSocket udpSocket;
     private final BlockingQueue<TOUPacket> dataPackets;
     private final BlockingQueue<TOUSystemPacket> systemPackets;
-    private final int timeout;
+    private final int dataPacketPollTimeout;
+    private final int systemPacketPollTimeout;
 
     TOUSender(TOUSocketImpl impl) throws IOException {
         super("TOUSender");
@@ -31,7 +32,8 @@ class TOUSender extends Thread {
         this.udpSocket = impl.datagramSocket;
         dataPackets = new ArrayBlockingQueue<>(TOUSocketImpl.QUEUE_CAPACITY);
         systemPackets = new ArrayBlockingQueue<>(TOUSocketImpl.QUEUE_CAPACITY);
-        this.timeout = TOUSocketImpl.TIMEOUT;
+        this.dataPacketPollTimeout = TOUSocketImpl.DATA_PACKET_POLL_TIMEOUT;
+        this.systemPacketPollTimeout = TOUSocketImpl.SYSTEM_PACKET_POLL_TIMEOUT;
 
         LOGGER.traceExit();
     }
@@ -135,7 +137,7 @@ class TOUSender extends Thread {
         LOGGER.traceEntry();
 
         TOUPacket dataPacket;
-        dataPacket = dataPackets.poll(timeout, TimeUnit.MILLISECONDS);
+        dataPacket = dataPackets.poll(dataPacketPollTimeout, TimeUnit.MILLISECONDS);
         if (dataPacket != null) LOGGER.debug("polled {}", dataPacket);
 
         if (dataPacket == null) {
@@ -165,7 +167,7 @@ class TOUSender extends Thread {
         LOGGER.traceEntry();
 
         while (true) {
-            TOUSystemPacket systemPacket = systemPackets.poll(timeout, TimeUnit.MILLISECONDS);
+            TOUSystemPacket systemPacket = systemPackets.poll(systemPacketPollTimeout, TimeUnit.MILLISECONDS);
             if (systemPacket != null) LOGGER.debug("polled {}", systemPacket);
             if (systemPacket == null) break;
 
