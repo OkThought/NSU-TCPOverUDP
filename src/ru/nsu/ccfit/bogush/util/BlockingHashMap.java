@@ -38,4 +38,8 @@ public class BlockingHashMap<K, V> {
     public synchronized boolean remove(V packet) {
         return map.values().remove(packet);
     }
+
+    public boolean isEmpty() {
+        return map.isEmpty();
+    }
 }
