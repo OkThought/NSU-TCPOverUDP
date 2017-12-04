@@ -7,10 +7,10 @@ import ru.nsu.ccfit.bogush.tcp.TCPUnknownSegmentTypeException;
 import java.net.InetAddress;
 
 class TOUSegment {
-    private TCPSegment tcpSegment;
-    private InetAddress sourceAddress;
-    private InetAddress destinationAddress;
-    private long timeExpires;
+    protected TCPSegment tcpSegment;
+    protected InetAddress sourceAddress;
+    protected InetAddress destinationAddress;
+    protected long timeExpires;
 
     TOUSegment(TCPSegment tcpSegment, InetAddress sourceAddress, InetAddress destinationAddress) {
         this.tcpSegment = tcpSegment;
@@ -76,7 +76,7 @@ class TOUSegment {
         return sourceAddress;
     }
 
-    void sourcePort(short sourcePort) {
+    void sourcePort(int sourcePort) {
         tcpSegment.sourcePort(sourcePort);
     }
 
@@ -92,7 +92,7 @@ class TOUSegment {
         return destinationAddress;
     }
 
-    void destinationPort(short destinationPort) {
+    void destinationPort(int destinationPort) {
         tcpSegment.destinationPort(destinationPort);
     }
 
