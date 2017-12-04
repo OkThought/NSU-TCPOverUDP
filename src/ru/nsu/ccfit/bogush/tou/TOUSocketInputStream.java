@@ -5,7 +5,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 
 class TOUSocketInputStream extends InputStream {
@@ -31,26 +30,31 @@ class TOUSocketInputStream extends InputStream {
         LOGGER.traceEntry();
 
         if (eof) {
-            return -1;
+            return LOGGER.traceExit(-1);
         }
 
         try {
-            if (buffer == null) {
+            if (buffer == null || !buffer.hasRemaining()) {
+                if (closing || impl.isClosedOrPending()) {
+                    throw LOGGER.throwing(new IOException("Stream closed"));
+                }
                 short seq = sequenceNumber;
-                buffer = ByteBuffer.wrap(impl.nextData(seq));
+                byte[] data = impl.nextData(seq);
+                if (data == null) {
+                    eof = true;
+                    return LOGGER.traceExit(-1);
+                }
+                buffer = ByteBuffer.wrap(data);
                 incrementSequenceNumber();
             }
         } catch (InterruptedException e) {
             LOGGER.catching(e);
+            e.printStackTrace();
 //            throw LOGGER.throwing(new IOException(e));
         }
 
         if (buffer.hasRemaining()) {
             return LOGGER.traceExit(buffer.get());
-        }
-
-        if (closing) {
-            throw LOGGER.throwing(new IOException("Stream closed"));
         }
 
         /*
@@ -60,7 +64,7 @@ class TOUSocketInputStream extends InputStream {
 
         eof = true;
 
-        return -1;
+        return LOGGER.traceExit(-1);
     }
 
     private void incrementSequenceNumber() {
