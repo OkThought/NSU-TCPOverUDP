@@ -17,7 +17,7 @@ class Client extends Thread {
 	private OutputStream out;
 
 	private Client(InetAddress address, int serverPort, String filename) throws IOException {
-		super(Client.class.getName());
+		super(Client.class.getSimpleName());
 		this.filename = filename;
 		socket = new Socket(address, serverPort);
 	}

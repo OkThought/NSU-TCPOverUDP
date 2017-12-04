@@ -1,13 +1,13 @@
 package ru.nsu.ccfit.bogush.tou;
 
-import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
+import ru.nsu.ccfit.bogush.tcp.TCPSegmentType;
 
 import java.net.InetAddress;
 
-public class TOUSystemPacket {
-    public static final TCPPacketType DEFAULT_TYPE = TCPPacketType.ORDINARY;
+public class TOUSystemMessage {
+    public static final TCPSegmentType DEFAULT_TYPE = TCPSegmentType.ORDINARY;
 
-    private TCPPacketType type;
+    private TCPSegmentType type;
     private InetAddress sourceAddress;
     private int sourcePort;
     private InetAddress destinationAddress;
@@ -15,7 +15,7 @@ public class TOUSystemPacket {
     private short sequenceNumber;
     private short ackNumber;
 
-    public TOUSystemPacket(TOUSystemPacket that) {
+    public TOUSystemMessage(TOUSystemMessage that) {
         this.type = that.type;
         this.sourceAddress = that.sourceAddress;
         this.sourcePort = that.sourcePort;
@@ -25,26 +25,26 @@ public class TOUSystemPacket {
         this.ackNumber = that.ackNumber;
     }
 
-    public TOUSystemPacket() {
+    public TOUSystemMessage() {
         this(DEFAULT_TYPE);
     }
 
-    public TOUSystemPacket(TCPPacketType type) {
+    public TOUSystemMessage(TCPSegmentType type) {
         this(type, null, 0, null, 0, 0);
     }
 
-    public TOUSystemPacket(TCPPacketType type,
-                           InetAddress sourceAddress, int sourcePort,
-                           InetAddress destinationAddress, int destinationPort,
-                           int systemMessage) {
+    public TOUSystemMessage(TCPSegmentType type,
+                            InetAddress sourceAddress, int sourcePort,
+                            InetAddress destinationAddress, int destinationPort,
+                            int systemMessage) {
         this(type, sourceAddress, sourcePort, destinationAddress, destinationPort,
                 sequencePart(systemMessage), ackPart(systemMessage));
     }
 
-    public TOUSystemPacket(TCPPacketType type,
-                           InetAddress sourceAddress, int sourcePort,
-                           InetAddress destinationAddress, int destinationPort,
-                           short sequenceNumber, short ackNumber) {
+    public TOUSystemMessage(TCPSegmentType type,
+                            InetAddress sourceAddress, int sourcePort,
+                            InetAddress destinationAddress, int destinationPort,
+                            short sequenceNumber, short ackNumber) {
         this.type = type;
         this.sourceAddress = sourceAddress;
         this.sourcePort = sourcePort;
@@ -62,11 +62,11 @@ public class TOUSystemPacket {
         return (short) systemMessage;
     }
 
-    public void type(TCPPacketType type) {
+    public void type(TCPSegmentType type) {
         this.type = type;
     }
 
-    public TCPPacketType type() {
+    public TCPSegmentType type() {
         return type;
     }
 
@@ -132,7 +132,7 @@ public class TOUSystemPacket {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        TOUSystemPacket that = (TOUSystemPacket) o;
+        TOUSystemMessage that = (TOUSystemMessage) o;
 
         if (type != that.type) return false;
         if (sourcePort != 0 && that.sourcePort != 0 && sourcePort != that.sourcePort) return false;
@@ -157,7 +157,7 @@ public class TOUSystemPacket {
 
     @Override
     public String toString() {
-        return "TOUSystemPacket <" + type +
+        return "TOUSystemMessage <" + type +
                 " sequence: " + sequenceNumber +
                 " ack: " + ackNumber +
                 " source: " + sourceAddress + ":" + sourcePort +

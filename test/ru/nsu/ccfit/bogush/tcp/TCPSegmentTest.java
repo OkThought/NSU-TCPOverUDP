@@ -5,18 +5,18 @@ import org.junit.Test;
 import java.nio.ByteBuffer;
 
 import static org.junit.Assert.*;
-import static ru.nsu.ccfit.bogush.tcp.TCPPacket.*;
+import static ru.nsu.ccfit.bogush.tcp.TCPSegment.*;
 
-public class TCPPacketTest {
-    private static final TCPPacket empty = new TCPPacket();
-    private static final TCPPacket syn = new TCPPacket();
-    private static final TCPPacket ack = new TCPPacket();
-    private static final TCPPacket synack = new TCPPacket();
-    private static final TCPPacket fin = new TCPPacket();
-    private static final TCPPacket finack = new TCPPacket();
+public class TCPSegmentTest {
+    private static final TCPSegment empty = new TCPSegment();
+    private static final TCPSegment syn = new TCPSegment();
+    private static final TCPSegment ack = new TCPSegment();
+    private static final TCPSegment synack = new TCPSegment();
+    private static final TCPSegment fin = new TCPSegment();
+    private static final TCPSegment finack = new TCPSegment();
     private static final String customString = "Some information";
     private static final byte[] customData = customString.getBytes();
-    private static final TCPPacket customPacket = new TCPPacket(customData.length);
+    private static final TCPSegment customPacket = new TCPSegment(customData.length);
 
     static {
         syn.setSYN(true);
@@ -32,7 +32,7 @@ public class TCPPacketTest {
 
     @Test
     public void setACK() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(false, p.isACK());
         p.setACK(true);
         assertEquals(true, p.isACK());
@@ -50,7 +50,7 @@ public class TCPPacketTest {
 
     @Test
     public void setSYN() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(false, p.isSYN());
         p.setSYN(true);
         assertEquals(true, p.isSYN());
@@ -68,7 +68,7 @@ public class TCPPacketTest {
 
     @Test
     public void setFIN() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(false, p.isFIN());
         p.setFIN(true);
         assertEquals(true, p.isFIN());
@@ -122,7 +122,7 @@ public class TCPPacketTest {
         assertEquals(SYN_BITMAP, syn.flags());
         assertEquals(SYN_BITMAP | ACK_BITMAP, synack.flags());
         assertEquals(FIN_BITMAP | ACK_BITMAP, finack.flags());
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(0, p.flags());
         p.flags(ACK_BITMAP);
         assertEquals(ACK_BITMAP, p.flags());
@@ -159,7 +159,7 @@ public class TCPPacketTest {
 
     @Test
     public void sourcePort() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(0, p.sourcePort());
         p.sourcePort((short) 1984);
         assertEquals(1984, p.sourcePort());
@@ -171,7 +171,7 @@ public class TCPPacketTest {
 
     @Test
     public void destinationPort() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(0, p.destinationPort());
         p.destinationPort((short) 1984);
         assertEquals(1984, p.destinationPort());
@@ -183,7 +183,7 @@ public class TCPPacketTest {
 
     @Test
     public void bigPorts() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         p.sourcePort(50000);
         p.destinationPort(50000);
         assertEquals(50000, p.sourcePort());
@@ -192,7 +192,7 @@ public class TCPPacketTest {
 
     @Test
     public void sequenceNumber() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(0, p.sequenceNumber());
         p.sequenceNumber((short) 1984);
         assertEquals(1984, p.sequenceNumber());
@@ -203,7 +203,7 @@ public class TCPPacketTest {
 
     @Test
     public void ackNumber() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(0, p.ackNumber());
         p.ackNumber((short) 1984);
         assertEquals(1984, p.ackNumber());
@@ -214,7 +214,7 @@ public class TCPPacketTest {
 
     @Test
     public void sequenceAndAckNumbers() throws Exception {
-        TCPPacket p = new TCPPacket();
+        TCPSegment p = new TCPSegment();
         assertEquals(0, p.sequenceAndAckNumbers());
         int i = ByteBuffer.allocate(4).putShort((short) 1984).putShort((short) 4891).getInt(0);
         p.sequenceAndAckNumbers(i);

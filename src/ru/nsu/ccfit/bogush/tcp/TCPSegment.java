@@ -3,7 +3,7 @@ package ru.nsu.ccfit.bogush.tcp;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class TCPPacket {
+public class TCPSegment {
     private static final int SOURCE_PORT_POSITION           = 0;
     private static final int DESTINATION_PORT_POSITION      = SOURCE_PORT_POSITION + 2;
     private static final int DATA_OFFSET_POSITION           = DESTINATION_PORT_POSITION + 2;
@@ -21,21 +21,21 @@ public class TCPPacket {
     private ByteBuffer bb;
     private byte[] bytes;
 
-    public TCPPacket() {
+    public TCPSegment() {
         this(0);
     }
 
-    public TCPPacket (int capacity) {
+    public TCPSegment(int capacity) {
         this(new byte[capacity + HEADER_SIZE]);
         Arrays.fill(bytes, (byte) 0);
         dataOffset((short) DATA_OFFSET_MIN);
     }
 
-    public TCPPacket (TCPPacket other) {
+    public TCPSegment(TCPSegment other) {
         this(other.bytes.clone());
     }
 
-    public TCPPacket (byte[] bytes) {
+    public TCPSegment(byte[] bytes) {
         if (bytes.length < HEADER_SIZE) {
             throw new IllegalArgumentException("Byte array too small: " + bytes.length + " < " + HEADER_SIZE);
         }
@@ -43,7 +43,7 @@ public class TCPPacket {
         this.bb = ByteBuffer.wrap(this.bytes);
     }
 
-    public TCPPacket(byte[] bytes, int offset, int length) {
+    public TCPSegment(byte[] bytes, int offset, int length) {
         this.bytes = new byte[length];
         System.arraycopy(bytes, offset, this.bytes, 0, length);
         this.bb = ByteBuffer.wrap(this.bytes);
@@ -152,11 +152,11 @@ public class TCPPacket {
     public String toString() {
         String type;
         try {
-            type = String.valueOf(TCPPacketType.typeOf(this));
-        } catch (TCPUnknownPacketTypeException ignored) {
+            type = String.valueOf(TCPSegmentType.typeOf(this));
+        } catch (TCPUnknownSegmentTypeException ignored) {
             type = "UNKNOWN";
         }
-        return String.format("TCPPacket <%s sequence: %d ack: %d src: %d dst: %d data size: %d>",
+        return String.format("TCPSegment <%s sequence: %d ack: %d src: %d dst: %d data size: %d>",
                 type, sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataSize());
     }
 

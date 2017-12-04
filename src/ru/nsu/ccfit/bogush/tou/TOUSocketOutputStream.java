@@ -2,48 +2,60 @@ package ru.nsu.ccfit.bogush.tou;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.nsu.ccfit.bogush.tcp.TCPPacket;
+import ru.nsu.ccfit.bogush.tcp.TCPSegment;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 
+import static ru.nsu.ccfit.bogush.tou.TOUConstants.MAX_DATA_SIZE;
+
 class TOUSocketOutputStream extends OutputStream {
-    static {
-        TOULog4JUtils.initIfNotInitYet();
-    }
+    static { TOULog4JUtils.initIfNotInitYet(); }
     private static final Logger LOGGER = LogManager.getLogger(TOUSocketOutputStream.class.getSimpleName());
 
-    private final TOUSender sender;
-    private final InetAddress localAddress;
-    private final int localPort;
-    private final InetAddress address;
-    private final int port;
+    private final TOUSocketImpl impl;
     private final ByteBuffer buffer;
     private short sequenceNumber = 0;
 
     public TOUSocketOutputStream(TOUSocketImpl impl) {
         LOGGER.traceEntry("impl: {}", ()->impl);
 
-        this.sender = impl.sender;
-        this.localAddress = impl.localAddress();
-        this.localPort = impl.localPort();
-        this.address = impl.address();
-        this.port = impl.port();
-        this.buffer = ByteBuffer.allocate(TOUSocketImpl.MAX_DATA_SIZE);
+        this.impl = impl;
+        this.buffer = ByteBuffer.allocate(MAX_DATA_SIZE);
 
         LOGGER.traceExit();
     }
 
     @Override
+    public void write(byte[] b) throws IOException {
+        if (closing || impl.isClosedOrPending()) {
+            throw LOGGER.throwing(new IOException("Stream closed"));
+        }
+        super.write(b);
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+        if (closing || impl.isClosedOrPending()) {
+            throw LOGGER.throwing(new IOException("Stream closed"));
+        }
+        super.write(b, off, len);
+    }
+
+    @Override
     public void write(int b) throws IOException {
         LOGGER.traceEntry("byte: {}", (byte) b);
+
+        if (closing || impl.isClosedOrPending()) {
+            throw LOGGER.throwing(new IOException("Stream closed"));
+        }
+
         try {
             synchronized (buffer) {
                 buffer.put((byte) b);
                 if (buffer.remaining() == 0) {
-                    sender.putInQueue(wrap(buffer.array().clone()));
+                    impl.segmentQueue().put(wrap(buffer.array().clone()));
                     incrementSequenceNumber();
                     buffer.position(0);
                 }
@@ -55,13 +67,13 @@ class TOUSocketOutputStream extends OutputStream {
         LOGGER.traceExit();
     }
 
-    private TOUPacket wrap(byte[] data) {
-        TCPPacket tcpPacket = new TCPPacket(data.length);
-        tcpPacket.sequenceNumber(sequenceNumber);
-        tcpPacket.data(data);
-        tcpPacket.sourcePort(localPort);
-        tcpPacket.destinationPort(port);
-        return new TOUPacket(tcpPacket, localAddress, address);
+    private TOUSegment wrap(byte[] data) {
+        TCPSegment tcpSegment = new TCPSegment(data.length);
+        tcpSegment.sequenceNumber(sequenceNumber);
+        tcpSegment.data(data);
+        tcpSegment.sourcePort(impl.localPort());
+        tcpSegment.destinationPort(impl.port());
+        return new TOUSegment(tcpSegment, impl.localAddress(), impl.address());
     }
 
     private void incrementSequenceNumber() {
@@ -70,12 +82,10 @@ class TOUSocketOutputStream extends OutputStream {
     }
 
     int available() {
-        synchronized (buffer) {
-            return buffer.position();
-        }
+        return buffer.position();
     }
 
-    TOUPacket flushIntoPacket() {
+    TOUSegment flushIntoSegment() {
         LOGGER.traceEntry();
 
         byte[] data;
@@ -85,11 +95,44 @@ class TOUSocketOutputStream extends OutputStream {
             data = new byte[size];
             System.arraycopy(buffer.array(), 0, data, 0, size);
         }
-        TOUPacket touPacket = wrap(data);
+
+        synchronized (this) {
+            this.notifyAll();
+        }
+
+        TOUSegment touSegment = wrap(data);
         incrementSequenceNumber();
 
-        return LOGGER.traceExit(touPacket);
+        return LOGGER.traceExit(touSegment);
     }
 
+    @Override
+    public void flush() throws IOException {
+        LOGGER.traceEntry();
+//        if (impl.isClosedOrPending()) return;
 
+        if (available() > 0) synchronized (this) {
+            while (available() > 0) {
+                try {
+                    this.wait();
+                } catch (InterruptedException e) {
+                    LOGGER.catching(e);
+                    break;
+                }
+            }
+        }
+
+        LOGGER.traceExit();
+    }
+
+    private boolean closing = false;
+    @Override
+    public void close() throws IOException {
+        if (closing) return;
+
+        closing = true;
+
+        flush();
+        impl.close();
+    }
 }

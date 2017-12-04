@@ -10,7 +10,7 @@ public class Server extends Thread {
 	private ServerSocket socket;
 
 	public Server(int port) throws IOException {
-		super(Server.class.getName());
+		super(Server.class.getSimpleName());
 		socket = new ServerSocket(port);
 	}
 

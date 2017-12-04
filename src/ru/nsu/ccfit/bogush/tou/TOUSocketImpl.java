@@ -2,43 +2,56 @@ package ru.nsu.ccfit.bogush.tou;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.nsu.ccfit.bogush.tcp.TCPPacket;
-import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
+import ru.nsu.ccfit.bogush.tcp.TCPSegmentType;
+import ru.nsu.ccfit.bogush.tcp.TCPUnknownSegmentTypeException;
+import ru.nsu.ccfit.bogush.util.BlockingHashMap;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
-import static ru.nsu.ccfit.bogush.tcp.TCPPacketType.*;
+import static ru.nsu.ccfit.bogush.tcp.TCPSegmentType.*;
+import static ru.nsu.ccfit.bogush.tou.TOUConstants.QUEUE_CAPACITY;
 
 class TOUSocketImpl extends SocketImpl {
-    static final int MAX_DATA_SIZE = 1024; // bytes
-    static final int MAX_PACKET_SIZE = MAX_DATA_SIZE + TCPPacket.HEADER_SIZE;
-    static final int QUEUE_CAPACITY = 512;
-    static final int DATA_PACKET_POLL_TIMEOUT = 1000;
-    static final int SYSTEM_PACKET_POLL_TIMEOUT = 1000;
-
-    static {
-        TOULog4JUtils.initIfNotInitYet();
-    }
+    static { TOULog4JUtils.initIfNotInitYet(); }
     private static final Logger LOGGER = LogManager.getLogger(TOUSocketImpl.class.getSimpleName());
 
-    private InetAddress localAddress;
-    DatagramSocket datagramSocket;
-    TOUSender sender;
-    TOUReceiver receiver;
+    private final BlockingQueue<TOUSegment> segmentQueue;
+    private final BlockingQueue<TOUSystemMessage> systemMessageQueue;
+    private final BlockingHashMap<Short, byte[]> segmentMap;
+    private final BlockingHashMap<TOUSystemMessage, TOUSystemMessage> systemMessageMap;
+
+    TOUFactory factory;
     TOUSocketOutputStream outputStream = null;
     TOUSocketInputStream inputStream = null;
 
+    private DatagramSocket datagramSocket;
+    private TOUCommunicator communicator;
+    private InetAddress localAddress;
+    private boolean closePending = false;
+    private boolean connected = false;
+    private boolean bound = false;
+
     TOUSocketImpl() {
         LOGGER.traceEntry();
+
         try {
             this.localAddress = InetAddress.getLocalHost();
         } catch (UnknownHostException e) {
             LOGGER.catching(e);
             e.printStackTrace();
         }
+
+        this.segmentQueue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+        this.systemMessageQueue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+        this.segmentMap = new BlockingHashMap<>();
+        this.systemMessageMap = new BlockingHashMap<>();
+        this.factory = new TOUFactory(this);
+
         LOGGER.traceExit();
     }
 
@@ -58,6 +71,46 @@ class TOUSocketImpl extends SocketImpl {
         return port;
     }
 
+    BlockingHashMap<Short, byte[]> segmentMap() {
+        return segmentMap;
+    }
+
+    BlockingHashMap<TOUSystemMessage, TOUSystemMessage> systemMessageMap() {
+        return systemMessageMap;
+    }
+
+    BlockingQueue<TOUSegment> segmentQueue() {
+        return segmentQueue;
+    }
+
+    BlockingQueue<TOUSystemMessage> systemMessageQueue() {
+        return systemMessageQueue;
+    }
+
+    InetSocketAddress localSocketAddress() {
+        return new InetSocketAddress(localAddress, localport);
+    }
+
+    InetSocketAddress remoteSocketAddress() {
+        return new InetSocketAddress(address, port);
+    }
+
+    boolean isBound() {
+        return bound;
+    }
+
+    boolean isConnected() {
+        return connected;
+    }
+
+    boolean isClosedOrPending() {
+        return closePending;
+    }
+
+    byte[] nextData(short sequenceNumber) throws InterruptedException {
+        return segmentMap.take(sequenceNumber);
+    }
+
     @Override
     protected void create(boolean stream) throws IOException {
         LOGGER.traceEntry("stream: ", stream);
@@ -67,34 +120,12 @@ class TOUSocketImpl extends SocketImpl {
 
     @Override
     protected void connect(String host, int port) throws IOException {
-        this.connect(InetAddress.getByName(host), port);
-    }
-
-    @Override
-    protected void connect(InetAddress address, int port) throws IOException {
-        LOGGER.traceEntry("{}:{}", address, port);
-
-        bind(localAddress, 0);
-
-        initSenderAndReceiver();
-
-        this.sender.start();
-        this.receiver.start();
-
-        TOUSystemPacket syn = sendSYN();
-        TOUSystemPacket synack = receiveSYNACK(syn);
-        sendACK(synack);
-        this.receiver.ignoreDataPackets(false);
-
-        LOGGER.info("================ Successfully connected to {}:{} ================", address, port);
-
-        LOGGER.traceExit();
+        connect(InetAddress.getByName(host), port);
     }
 
     @Override
     protected void connect(SocketAddress address, int timeout) throws IOException {
         LOGGER.traceEntry("address: {} timeout: {}", ()->address, ()->timeout);
-
 
         InetSocketAddress socketAddress = (InetSocketAddress) address;
         super.address = socketAddress.getAddress();
@@ -106,15 +137,48 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected void bind(InetAddress host, int port) throws IOException {
-        LOGGER.traceEntry("{}:{}", host, port);
+    protected void connect(InetAddress address, int port) throws IOException {
+        LOGGER.traceEntry("{}:{}", address, port);
 
-        if (host.isAnyLocalAddress()) {
-            host = localAddress;
+        bind(localAddress, 0);
+
+        this.communicator.startIfNotAlive();
+
+        TOUSystemMessage syn = sendSYNorFIN(SYN);
+        TOUSystemMessage synack = receiveSYNACKorFINACK(syn);
+        sendACK(synack);
+
+        connected = true;
+        LOGGER.info("================ Successfully connected to {}:{} ================", address, port);
+
+        LOGGER.traceExit();
+    }
+
+    private void disconnect() {
+        connected = false;
+    }
+
+    @Override
+    protected void bind(InetAddress address, int port) throws IOException {
+        LOGGER.traceEntry("{}:{}", address, port);
+
+        if (isClosedOrPending()) {
+            throw LOGGER.throwing(new SocketException("Socket closed"));
         }
-        datagramSocket = new DatagramSocket(new InetSocketAddress(host, port));
-//        datagramSocket.bind(new InetSocketAddress(host, port));
-        super.localport = datagramSocket.getLocalPort();
+
+        if (address.isAnyLocalAddress()) {
+            address = localAddress;
+        }
+
+        this.datagramSocket = new DatagramSocket(port, address);
+        this.localport = datagramSocket.getLocalPort();
+        this.localAddress = datagramSocket.getLocalAddress();
+        datagramSocket.setSoTimeout(TOUConstants.UDP_RECV_TIMEOUT);
+        this.communicator = new TOUCommunicator(datagramSocket);
+        communicator.addSocketImpl(this);
+
+        bound = true;
+        LOGGER.trace("bound successfully to {}:{}", localAddress, localport);
 
         LOGGER.traceExit();
     }
@@ -123,7 +187,7 @@ class TOUSocketImpl extends SocketImpl {
     protected void listen(int backlog) throws IOException {
         LOGGER.traceEntry("backlog: {}", backlog);
 
-        initSenderAndReceiver();
+        communicator.startIfNotAlive();
 
         LOGGER.traceExit();
     }
@@ -133,36 +197,137 @@ class TOUSocketImpl extends SocketImpl {
         TOUSocketImpl impl = (TOUSocketImpl) s;
         LOGGER.traceEntry(()->impl);
 
-        if (!sender.isAlive()) {
-            sender.start();
-        }
-        if (!receiver.isAlive()) {
-            receiver.start();
-        }
+        TOUSystemMessage syn = receiveSYN(localAddress, localport);
+        TOUSystemMessage synack = sendSYNACKorFINACK(syn);
+        TOUSystemMessage ack = receiveACK(syn, synack);
 
-        TOUSystemPacket syn = receiveSYN(datagramSocket.getLocalAddress(), datagramSocket.getLocalPort());
-
-        TOUSystemPacket synack = sendSYNACK(syn);
-        receiveACK(syn, synack);
-
-        impl.datagramSocket = datagramSocket;
         impl.localAddress = localAddress;
         impl.localport = localport;
-        impl.address = syn.sourceAddress();
-        impl.port = syn.sourcePort();
-        impl.receiver = receiver;
-        impl.sender = sender;
+        impl.address = ack.sourceAddress();
+        impl.port = ack.sourcePort();
+        impl.communicator = communicator;
+        impl.connected = true;
+        communicator.addSocketImpl(impl);
 
         LOGGER.trace("Accepted impl: {}", impl);
 
-        LOGGER.info("================ Successfully accepted connection from {}:{} ================", address, port);
+        LOGGER.info("================ Successfully accepted connection from {}:{} ================",
+                ack.sourceAddress(), ack.sourcePort());
 
         LOGGER.traceExit();
     }
 
     @Override
-    protected InputStream getInputStream() throws IOException {
+    protected void close()
+            throws IOException {
         LOGGER.traceEntry();
+
+        if (closePending) {
+            LOGGER.warn("Already closing");
+            LOGGER.traceExit();
+            return;
+        } else {
+            closePending = true;
+        }
+
+        // wait for communicator to flush output buffer
+        if (outputStream != null) {
+            outputStream.flush();
+        }
+
+        // wait for app to read all bytes from input stream
+        // TODO: 12/3/17 decide if it is necessary
+
+        // wait until maps and queues are empty
+        try {
+            blockUntilContainersEmpty();
+        } catch (InterruptedException e) {
+            LOGGER.catching(e);
+        }
+
+        if (isConnected()) {
+            activeClose();
+        }
+
+        if (datagramSocket != null) {
+            datagramSocket.close();
+        }
+
+        communicator.stop();
+        communicator = null;
+
+        LOGGER.traceExit();
+    }
+
+    private void activeClose()  {
+        LOGGER.traceEntry();
+
+        try {
+            TOUSystemMessage fin = sendSYNorFIN(FIN);
+            TOUSystemMessage finack = receiveSYNACKorFINACK(fin);
+            sendACK(finack);
+        } catch (IOException e) {
+            LOGGER.catching(e);
+            e.printStackTrace();
+        }
+
+        LOGGER.traceExit();
+    }
+
+    private void passiveClose(TOUSystemMessage fin) {
+        LOGGER.traceEntry("{}", fin);
+
+        if (closePending) return;
+
+        try {
+            TOUSystemMessage finack = sendSYNACKorFINACK(fin);
+            TOUSystemMessage ack = receiveACK(fin, finack);
+            disconnect();
+            close();
+        } catch (IOException e) {
+            LOGGER.catching(e);
+            e.printStackTrace();
+        }
+
+        LOGGER.traceExit();
+    }
+
+    private void blockUntilContainersEmpty()
+            throws InterruptedException {
+        if (!segmentQueue.isEmpty()) synchronized (segmentQueue) {
+            while (!segmentQueue.isEmpty()) {
+                segmentQueue.wait();
+            }
+        }
+
+        if (!segmentMap.isEmpty()) synchronized (segmentMap) {
+            while (!segmentMap.isEmpty()) {
+                segmentMap.wait();
+            }
+        }
+
+        if (!systemMessageQueue.isEmpty()) synchronized (systemMessageQueue) {
+            while (!systemMessageQueue.isEmpty()) {
+                systemMessageQueue.wait();
+            }
+        }
+
+        if (!systemMessageMap.isEmpty()) synchronized (systemMessageMap) {
+            while (!systemMessageMap.isEmpty()) {
+                systemMessageMap.wait();
+            }
+        }
+    }
+
+    @Override
+    protected InputStream getInputStream()
+            throws IOException {
+        LOGGER.traceEntry();
+
+        if (isClosedOrPending()) {
+            throw new SocketException("Socket Closed");
+        }
+
         if (inputStream == null) {
             inputStream = new TOUSocketInputStream(this);
         }
@@ -170,8 +335,14 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected OutputStream getOutputStream() throws IOException {
+    protected OutputStream getOutputStream()
+            throws IOException {
         LOGGER.traceEntry();
+
+        if (isClosedOrPending()) {
+            throw new SocketException("Socket Closed");
+        }
+
         if (outputStream == null) {
             outputStream = new TOUSocketOutputStream(this);
         }
@@ -179,19 +350,143 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected int available() throws IOException {
+    protected int available()
+            throws IOException {
         LOGGER.traceEntry();
-        return LOGGER.traceExit(outputStream == null ? 0 : outputStream.available());
+
+        if (isClosedOrPending()) {
+            throw new IOException("Stream closed");
+        }
+
+        int available = outputStream == null ? 0 : outputStream.available();
+
+        return LOGGER.traceExit(available);
     }
 
-    @Override
-    protected void close() throws IOException {
-        // TODO: wait until all packets in sender are sent
-        // TODO: wait until all received packets are taken from receiver
-        // TODO: close the udp socket
-        // TODO: release all resources
+    private boolean removeFromQueue(TOUSystemMessage systemPacket) throws TCPUnknownSegmentTypeException {
         LOGGER.traceEntry();
+
+        boolean removed = systemMessageQueue.remove(systemPacket);
+
+        if (!removed) for (TOUSegment dataPacket : segmentQueue) {
+            if (TOUFactory.isMergedWithSystemMessage(dataPacket, systemPacket)) {
+                TOUFactory.unmerge(dataPacket);
+                removed = true;
+            }
+        }
+
+        return LOGGER.traceExit(removed);
+    }
+
+    void systemMessageReceived(TOUSystemMessage systemMessage) {
+        LOGGER.traceEntry("system message: {}", systemMessage);
+
+        TCPSegmentType type = systemMessage.type();
+        if (type == ACK && isConnected()) {
+            LOGGER.debug("Handle ACK {}", systemMessage.ackNumber());
+            TOUSegment touSegment = TOUFactory.createTOUSegmentByAck(systemMessage);
+            systemMessageMap.remove(systemMessage);
+            segmentQueue.remove(touSegment);
+        } else if (type == FIN){
+            if (isConnected()) {
+                passiveClose(systemMessage);
+            }
+
+        } else {
+            TOUSystemMessage key = TOUFactory.generateSystemMessageKey(systemMessage);
+//            LOGGER.debug("put {} into map with key: {}", systemMessage, key);
+            systemMessageMap.put(key, systemMessage);
+        }
+
         LOGGER.traceExit();
+    }
+
+    private TOUSystemMessage sendSYNorFIN(TCPSegmentType type)
+            throws IOException {
+        LOGGER.traceEntry();
+        try {
+            TOUSystemMessage synOrFin = TOUFactory.createSYNorFIN(type, localAddress, localport, address, port);
+            systemMessageQueue.put(synOrFin);
+            return LOGGER.traceExit(synOrFin);
+        } catch (InterruptedException e) {
+            throw LOGGER.throwing(new IOException(e));
+        }
+    }
+
+    private TOUSystemMessage receiveSYN(InetAddress localAddress, int localPort) throws IOException {
+        LOGGER.traceEntry("local address: {} local port: {}", localAddress, localPort);
+
+        TOUSystemMessage expected = new TOUSystemMessage(SYN);
+        expected.destinationAddress(localAddress);
+        expected.destinationPort(localPort);
+
+        try {
+            TOUSystemMessage syn = systemMessageMap.take(expected);
+            return LOGGER.traceExit(syn);
+        } catch (InterruptedException e) {
+            throw LOGGER.throwing(new IOException(e));
+        }
+    }
+
+    private TOUSystemMessage sendSYNACKorFINACK(TOUSystemMessage synOrFin)
+            throws IOException {
+        LOGGER.traceEntry(()->synOrFin);
+        try {
+            TOUSystemMessage synackOrFinack = factory.createSYNACKorFINACK(synOrFin);
+            systemMessageQueue.put(synackOrFinack);
+            return LOGGER.traceExit(synackOrFinack);
+        } catch (InterruptedException e) {
+            throw LOGGER.throwing(new IOException(e));
+        }
+    }
+
+    private TOUSystemMessage receiveSYNACKorFINACK(TOUSystemMessage synOrFin)
+            throws IOException {
+        LOGGER.traceEntry("{}", synOrFin);
+
+        TOUSystemMessage expected = new TOUSystemMessage(synOrFin.type() == SYN ? SYNACK : FINACK);
+        expected.destinationAddress(synOrFin.sourceAddress());
+        expected.destinationPort(synOrFin.sourcePort());
+        expected.sourceAddress(synOrFin.destinationAddress());
+        expected.sourcePort(synOrFin.destinationPort());
+        expected.ackNumber((short) (synOrFin.sequenceNumber() + 1));
+
+        TOUSystemMessage synackOrFinack;
+        try {
+            synackOrFinack = systemMessageMap.take(expected);
+            removeFromQueue(synOrFin);
+        } catch (InterruptedException | TCPUnknownSegmentTypeException e) {
+            throw LOGGER.throwing(new IOException(e));
+        }
+        return LOGGER.traceExit(synackOrFinack);
+    }
+
+    private void sendACK(TOUSystemMessage synackOrFinack)
+            throws IOException {
+        LOGGER.traceEntry();
+
+        TOUSystemMessage ack = TOUFactory.createACK(synackOrFinack);
+        communicator.sendOnce(ack);
+
+        LOGGER.traceExit();
+    }
+
+    private TOUSystemMessage receiveACK(TOUSystemMessage synOrFin, TOUSystemMessage synackOrFinack)
+            throws IOException {
+        LOGGER.traceEntry();
+
+        TOUSystemMessage expectedPacket = new TOUSystemMessage(synOrFin);
+        expectedPacket.type(ACK);
+        expectedPacket.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
+        expectedPacket.sequenceNumber(synackOrFinack.ackNumber()); // A + 1
+        TOUSystemMessage ack;
+        try {
+            ack = systemMessageMap.take(expectedPacket);
+            removeFromQueue(synackOrFinack);
+            return LOGGER.traceExit(ack);
+        } catch (InterruptedException | TCPUnknownSegmentTypeException e) {
+            throw LOGGER.throwing(new IOException(e));
+        }
     }
 
     @Override
@@ -200,36 +495,9 @@ class TOUSocketImpl extends SocketImpl {
         LOGGER.traceExit();
     }
 
-    boolean isConnected() {
-        return address != null;
-    }
-
-    void ackReceived(TOUSystemPacket packet) {
-        LOGGER.traceEntry("system packet: {}", packet);
-
-        if (isConnected()) {
-            LOGGER.debug("Handle ACK {}", packet.ackNumber());
-            TOUPacket touPacket = TOUPacketFactory.createTOUPacketByAck(packet);
-            this.receiver.deleteSystemPacketFromMap(packet);
-            sender.removeFromQueue(touPacket);
-        }
-
-        LOGGER.traceExit();
-    }
-
-    void dataReceived(TOUSystemPacket key) throws IOException {
-        LOGGER.traceEntry("key: {}", key);
-
-        /*
-         * ignore data when connection is not established yet
-         */
-        if (isConnected()) {
-            LOGGER.debug("Handle data packet of sequence {}", key.sequenceNumber());
-            TOUSystemPacket ack = TOUPacketFactory.createAckToDataPacket(key);
-            this.sender.sendOnce(ack);
-        }
-
-        LOGGER.traceExit();
+    @Override
+    public String toString() {
+        return String.format("TOUSocketImpl <local: %s:%d remote: %s:%d>", localAddress, localport, address, port);
     }
 
     @Override
@@ -242,118 +510,5 @@ class TOUSocketImpl extends SocketImpl {
     public Object getOption(int optID) throws SocketException {
         LOGGER.traceEntry();
         return LOGGER.traceExit("{}", null);
-    }
-
-    private void initSenderAndReceiver() throws IOException {
-        sender = new TOUSender(this);
-        receiver = new TOUReceiver(this);
-    }
-
-    private TOUSystemPacket receiveSYN(InetAddress localAddress, int localPort) throws IOException {
-        LOGGER.traceEntry("local address: {} local port: {}", localAddress, localPort);
-
-        TOUSystemPacket expectedPacket = new TOUSystemPacket(SYN);
-        expectedPacket.destinationAddress(localAddress);
-        expectedPacket.destinationPort(localPort);
-
-        try {
-            TOUSystemPacket syn = receiver.receiveSystemPacket(expectedPacket);
-            return LOGGER.traceExit(syn);
-        } catch (InterruptedException e) {
-            throw LOGGER.throwing(new IOException(e));
-        }
-    }
-
-    private TOUSystemPacket receiveSYNACK(TOUSystemPacket syn)
-            throws IOException {
-        LOGGER.traceEntry("{}", syn);
-
-        TOUSystemPacket expectedPacket = new TOUSystemPacket(SYNACK);
-        expectedPacket.destinationAddress(syn.sourceAddress());
-        expectedPacket.destinationPort(syn.sourcePort());
-        expectedPacket.sourceAddress(syn.destinationAddress());
-        expectedPacket.sourcePort(syn.destinationPort());
-        expectedPacket.ackNumber((short) (syn.sequenceNumber() + 1));
-
-        TOUSystemPacket synack;
-        try {
-            synack = receiver.receiveSystemPacket(expectedPacket);
-            sender.removeFromQueue(syn);
-        } catch (InterruptedException | TCPUnknownPacketTypeException e) {
-            throw LOGGER.throwing(new IOException(e));
-        }
-        return LOGGER.traceExit(synack);
-    }
-
-    private TOUSystemPacket receiveFINACK(TOUSystemPacket fin)
-            throws InterruptedException {
-        LOGGER.traceEntry("{}", fin);
-
-        TOUSystemPacket expectedPacket = new TOUSystemPacket(FINACK);
-        expectedPacket.destinationAddress(fin.sourceAddress());
-        expectedPacket.destinationPort(fin.sourcePort());
-        expectedPacket.sourceAddress(fin.destinationAddress());
-        expectedPacket.sourcePort(fin.destinationPort());
-        expectedPacket.ackNumber((short) (fin.sequenceNumber() + 1));
-
-        return LOGGER.traceExit(receiver.receiveSystemPacket(expectedPacket));
-    }
-
-    private TOUSystemPacket receiveACK(TOUSystemPacket synOrFin, TOUSystemPacket synackOrFinack)
-            throws IOException {
-        LOGGER.traceEntry();
-
-        TOUSystemPacket expectedPacket = new TOUSystemPacket(synOrFin);
-        expectedPacket.type(ACK);
-        expectedPacket.ackNumber((short) (synackOrFinack.sequenceNumber() + 1)); // B + 1
-        expectedPacket.sequenceNumber(synackOrFinack.ackNumber()); // A + 1
-        TOUSystemPacket ack;
-        try {
-            ack = receiver.receiveSystemPacket(expectedPacket);
-            sender.removeFromQueue(synackOrFinack);
-            return LOGGER.traceExit(ack);
-        } catch (InterruptedException | TCPUnknownPacketTypeException e) {
-            throw LOGGER.throwing(new IOException(e));
-        }
-    }
-
-    private TOUSystemPacket sendSYN()
-            throws IOException {
-        LOGGER.traceEntry();
-        try {
-            TOUSystemPacket syn = TOUPacketFactory.createSYN(localAddress, localport, address, port);
-            sender.putInQueue(syn);
-            return LOGGER.traceExit(syn);
-        } catch (InterruptedException e) {
-            throw LOGGER.throwing(new IOException(e));
-        }
-    }
-
-    private TOUSystemPacket sendSYNACK(TOUSystemPacket synOrFin)
-            throws IOException {
-        LOGGER.traceEntry(()->synOrFin);
-        try {
-            TOUSystemPacket synack = TOUPacketFactory.createSYNACK(datagramSocket.getLocalAddress(), localport, synOrFin);
-            sender.putInQueue(synack);
-            receiver.ignoreDataPackets(false);
-            return LOGGER.traceExit(synack);
-        } catch (InterruptedException e) {
-            throw LOGGER.throwing(new IOException(e));
-        }
-    }
-
-    private void sendACK(TOUSystemPacket synackOrFinack)
-            throws IOException {
-        LOGGER.traceEntry();
-
-        TOUSystemPacket ack = TOUPacketFactory.createACK(synackOrFinack);
-        sender.sendOnce(ack);
-
-        LOGGER.traceExit();
-    }
-
-    @Override
-    public String toString() {
-        return String.format("TOUSocketImpl <local: %s:%d remote: %s:%d>", localAddress, localport, address, port);
     }
 }

@@ -1,10 +1,10 @@
 package ru.nsu.ccfit.bogush.tcp;
 
-import static ru.nsu.ccfit.bogush.tcp.TCPPacket.ACK_BITMAP;
-import static ru.nsu.ccfit.bogush.tcp.TCPPacket.SYN_BITMAP;
-import static ru.nsu.ccfit.bogush.tcp.TCPPacket.FIN_BITMAP;
+import static ru.nsu.ccfit.bogush.tcp.TCPSegment.ACK_BITMAP;
+import static ru.nsu.ccfit.bogush.tcp.TCPSegment.SYN_BITMAP;
+import static ru.nsu.ccfit.bogush.tcp.TCPSegment.FIN_BITMAP;
 
-public enum TCPPacketType {
+public enum TCPSegmentType {
     ORDINARY,
     ACK (ACK_BITMAP),
     SYN (SYN_BITMAP),
@@ -14,18 +14,18 @@ public enum TCPPacketType {
 
     private final byte typeBitMap;
 
-    TCPPacketType() {
+    TCPSegmentType() {
         this.typeBitMap = 0;
     }
 
-    TCPPacketType(byte typeBitMap) {
+    TCPSegmentType(byte typeBitMap) {
         this.typeBitMap = typeBitMap;
     }
 
 
 
     @SuppressWarnings({"ConstantConditions"})
-    public static TCPPacketType typeOf (TCPPacket p) throws TCPUnknownPacketTypeException {
+    public static TCPSegmentType typeOf (TCPSegment p) throws TCPUnknownSegmentTypeException {
         boolean a = p.isACK();
         boolean s = p.isSYN();
         boolean f = p.isFIN();
@@ -35,7 +35,7 @@ public enum TCPPacketType {
         if ( s &&  a && !f) return SYNACK;
         if (!s && !a &&  f) return FIN;
         if (!s &&  a &&  f) return FINACK;
-        throw new TCPUnknownPacketTypeException();
+        throw new TCPUnknownSegmentTypeException();
     }
 
     public byte toByte() {

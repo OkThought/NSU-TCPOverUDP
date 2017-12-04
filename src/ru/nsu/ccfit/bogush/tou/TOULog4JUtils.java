@@ -19,12 +19,12 @@ public class TOULog4JUtils {
     }
 
     public static String toString(DatagramSocket socket) {
-        return String.format("udp socket <%s:%s, %s:%s>",
+        return String.format("udp socket <%s:%d, %s:%s>",
                 socket.getLocalAddress(), socket.getLocalPort(), socket.getInetAddress(), socket.getPort());
     }
 
     public static Object toString(DatagramPacket packet) {
-        return String.format("udp packet <%s:%s size: %d>", packet.getAddress(), packet.getPort(), packet.getLength());
+        return String.format("udp packet <%s:%d size: %d>", packet.getAddress(), packet.getPort(), packet.getLength());
     }
 
     public static String toString(SocketAddress socketAddress) {

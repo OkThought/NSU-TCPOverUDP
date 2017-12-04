@@ -1,70 +1,71 @@
 package ru.nsu.ccfit.bogush.tou;
 
-import ru.nsu.ccfit.bogush.tcp.TCPPacket;
-import ru.nsu.ccfit.bogush.tcp.TCPPacketType;
-import ru.nsu.ccfit.bogush.tcp.TCPUnknownPacketTypeException;
+import ru.nsu.ccfit.bogush.tcp.TCPSegment;
+import ru.nsu.ccfit.bogush.tcp.TCPSegmentType;
+import ru.nsu.ccfit.bogush.tcp.TCPUnknownSegmentTypeException;
 
 import java.net.InetAddress;
 
-class TOUPacket {
-    private TCPPacket tcpPacket;
+class TOUSegment {
+    private TCPSegment tcpSegment;
     private InetAddress sourceAddress;
     private InetAddress destinationAddress;
+    private long timeExpires;
 
-    TOUPacket(TCPPacket tcpPacket, InetAddress sourceAddress, InetAddress destinationAddress) {
-        this.tcpPacket = tcpPacket;
+    TOUSegment(TCPSegment tcpSegment, InetAddress sourceAddress, InetAddress destinationAddress) {
+        this.tcpSegment = tcpSegment;
         this.sourceAddress = sourceAddress;
         this.destinationAddress = destinationAddress;
     }
 
-    TOUPacket(TOUPacket other) {
-        this.tcpPacket = new TCPPacket(other.tcpPacket);
+    TOUSegment(TOUSegment other) {
+        this.tcpSegment = new TCPSegment(other.tcpSegment);
         this.sourceAddress = other.sourceAddress;
         this.destinationAddress = other.destinationAddress;
     }
 
-    void tcpPacket(TCPPacket tcpPacket) {
-        this.tcpPacket = tcpPacket;
+    void tcpSegment(TCPSegment tcpSegment) {
+        this.tcpSegment = tcpSegment;
     }
 
-    TCPPacket tcpPacket() {
-        return tcpPacket;
+    TCPSegment tcpSegment() {
+        return tcpSegment;
     }
 
-    void type(TCPPacketType type) {
-        tcpPacket.flags(type.toByte());
+    void type(TCPSegmentType type) {
+        tcpSegment.flags(type.toByte());
     }
 
-    TCPPacketType type() throws TCPUnknownPacketTypeException {
-        return TCPPacketType.typeOf(tcpPacket);
+    TCPSegmentType type() throws TCPUnknownSegmentTypeException {
+        return TCPSegmentType.typeOf(tcpSegment);
     }
 
     void typeByte(byte typeByte) {
-        tcpPacket.flags(typeByte);
+        tcpSegment.flags(typeByte);
     }
 
     byte typeByte() {
-        return tcpPacket.flags();
+        return tcpSegment.flags();
     }
 
     void sequenceNumber(short sequenceNumber) {
-        tcpPacket.sequenceNumber(sequenceNumber);
+        tcpSegment.sequenceNumber(sequenceNumber);
     }
 
     short sequenceNumber() {
-        return tcpPacket.sequenceNumber();
+        return tcpSegment.sequenceNumber();
     }
 
     public void ackNumber(short ackNumber) {
-        tcpPacket.ackNumber(ackNumber);
+        tcpSegment.ackNumber(ackNumber);
     }
 
     public short ackNumber() {
-        return tcpPacket.ackNumber();
+        return tcpSegment.ackNumber();
     }
 
     public int sequenceAndAckNumbers() {
-        return tcpPacket.sequenceAndAckNumbers();
+        return tcpSegment.sequenceAndAckNumbers();
     }
 
     void sourceAddress(InetAddress sourceAddress) {
@@ -76,11 +77,11 @@ class TOUPacket {
     }
 
     void sourcePort(short sourcePort) {
-        tcpPacket.sourcePort(sourcePort);
+        tcpSegment.sourcePort(sourcePort);
     }
 
     int sourcePort() {
-        return tcpPacket.sourcePort();
+        return tcpSegment.sourcePort();
     }
 
     void destinationAddress(InetAddress destinationAddress) {
@@ -92,11 +93,23 @@ class TOUPacket {
     }
 
     void destinationPort(short destinationPort) {
-        tcpPacket.destinationPort(destinationPort);
+        tcpSegment.destinationPort(destinationPort);
     }
 
     int destinationPort() {
-        return tcpPacket.destinationPort();
+        return tcpSegment.destinationPort();
+    }
+
+    long timeExpires() {
+        return timeExpires;
+    }
+
+    void timeExpires(long newValue) {
+        timeExpires = newValue;
+    }
+
+    boolean needsResending() {
+        return true;
     }
 
     @Override
@@ -104,9 +117,9 @@ class TOUPacket {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        TOUPacket other = (TOUPacket) o;
+        TOUSegment other = (TOUSegment) o;
 
-        if (tcpPacket == null ? other.tcpPacket != null : other.tcpPacket == null) return false;
+        if (tcpSegment == null ? other.tcpSegment != null : other.tcpSegment == null) return false;
 
         if (sourcePort() != other.sourcePort() ||
             destinationPort() != other.destinationPort() ||
@@ -120,9 +133,9 @@ class TOUPacket {
 
     @Override
     public int hashCode() {
-        int result = tcpPacket != null ? tcpPacket.sequenceNumber(): 0;
-        result = 31 * result + (tcpPacket != null ? tcpPacket.sourcePort() : 0);
-        result = 31 * result + (tcpPacket != null ? tcpPacket.destinationPort() : 0);
+        int result = tcpSegment != null ? tcpSegment.sequenceNumber(): 0;
+        result = 31 * result + (tcpSegment != null ? tcpSegment.sourcePort() : 0);
+        result = 31 * result + (tcpSegment != null ? tcpSegment.destinationPort() : 0);
         result = 31 * result + (sourceAddress != null ? sourceAddress.hashCode() : 0);
         result = 31 * result + (destinationAddress != null ? destinationAddress.hashCode() : 0);
         return result;
@@ -130,7 +143,7 @@ class TOUPacket {
 
     @Override
     public String toString() {
-        return "TOUPacket <" + "tcpPacket: " + tcpPacket +
+        return "TOUSegment <" + "tcpSegment: " + tcpSegment +
                 " source: " + sourceAddress +
                 " destination: " + destinationAddress +
                 '>';

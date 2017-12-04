@@ -25,7 +25,7 @@ public class FileReceiver extends Thread implements SizeObserver {
 	}
 
 	public FileReceiver(Socket client, int bufferSize) throws IOException {
-		super(FileReceiver.class.getName());
+		super(FileReceiver.class.getSimpleName());
 		this.client = client;
 		in = client.getInputStream();
 		out = client.getOutputStream();
