@@ -6,6 +6,16 @@ import java.util.Map;
 public class BlockingHashMap<K, V> {
     private HashMap<K, V> map;
 
+    private boolean blocking = true;
+
+    public boolean isBlocking() {
+        return blocking;
+    }
+
+    public void setBlocking(boolean b) {
+        blocking = b;
+    }
+
     public BlockingHashMap() {
         map = new HashMap<>();
     }
@@ -22,8 +32,9 @@ public class BlockingHashMap<K, V> {
         map = new HashMap<>(m);
     }
 
-    public synchronized V take(Object key) throws InterruptedException {
-        while (!map.containsKey(key)) {
+    public synchronized V take(K key) throws InterruptedException {
+        // TODO: 12/4/17 unblock if no more packets expected
+        while (!map.containsKey(key) && blocking) {
             this.wait();
         }
         return map.remove(key);

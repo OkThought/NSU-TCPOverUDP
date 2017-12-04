@@ -108,6 +108,7 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     byte[] nextData(short sequenceNumber) throws InterruptedException {
+        LOGGER.trace("Request next data segment with seq: {}", sequenceNumber);
         return segmentMap.take(sequenceNumber);
     }
 
@@ -198,8 +199,13 @@ class TOUSocketImpl extends SocketImpl {
         LOGGER.traceEntry(()->impl);
 
         TOUSystemMessage syn = receiveSYN(localAddress, localport);
+        if (syn == null) return;
+
         TOUSystemMessage synack = sendSYNACKorFINACK(syn);
+        if (synack == null) return;
+
         TOUSystemMessage ack = receiveACK(syn, synack);
+        if (ack == null) return;
 
         impl.localAddress = localAddress;
         impl.localport = localport;
@@ -230,7 +236,9 @@ class TOUSocketImpl extends SocketImpl {
             closePending = true;
         }
 
-        // wait for communicator to flush output buffer
+        LOGGER.debug("close connection");
+
+        LOGGER.debug("wait for communicator to flush output buffer");
         if (outputStream != null) {
             outputStream.flush();
         }
@@ -238,18 +246,30 @@ class TOUSocketImpl extends SocketImpl {
         // wait for app to read all bytes from input stream
         // TODO: 12/3/17 decide if it is necessary
 
-        // wait until maps and queues are empty
+        LOGGER.debug("wait until maps and queues are empty");
         try {
             blockUntilContainersEmpty();
         } catch (InterruptedException e) {
             LOGGER.catching(e);
         }
 
+        LOGGER.debug("process 3-way tear down handshake");
         if (isConnected()) {
             activeClose();
         }
 
+        systemMessageMap.setBlocking(false);
+        synchronized (systemMessageMap) {
+            systemMessageMap.notifyAll();
+        }
+
+        segmentMap.setBlocking(false);
+        synchronized (segmentMap) {
+            segmentMap.notifyAll();
+        }
+
         if (datagramSocket != null) {
+            LOGGER.debug("close UDP socket: {}", ()->TOULog4JUtils.toString(datagramSocket));
             datagramSocket.close();
         }
 
@@ -264,7 +284,9 @@ class TOUSocketImpl extends SocketImpl {
 
         try {
             TOUSystemMessage fin = sendSYNorFIN(FIN);
+            if (fin == null) return;
             TOUSystemMessage finack = receiveSYNACKorFINACK(fin);
+            if (finack == null) return;
             sendACK(finack);
         } catch (IOException e) {
             LOGGER.catching(e);
@@ -294,29 +316,37 @@ class TOUSocketImpl extends SocketImpl {
 
     private void blockUntilContainersEmpty()
             throws InterruptedException {
+        LOGGER.debug("waiting for segment queue");
         if (!segmentQueue.isEmpty()) synchronized (segmentQueue) {
             while (!segmentQueue.isEmpty()) {
                 segmentQueue.wait();
             }
         }
+        LOGGER.debug("segment queue is empty");
 
+        LOGGER.debug("waiting for segment map");
         if (!segmentMap.isEmpty()) synchronized (segmentMap) {
             while (!segmentMap.isEmpty()) {
                 segmentMap.wait();
             }
         }
+        LOGGER.debug("segment map is empty");
 
+        LOGGER.debug("waiting for system message queue");
         if (!systemMessageQueue.isEmpty()) synchronized (systemMessageQueue) {
             while (!systemMessageQueue.isEmpty()) {
                 systemMessageQueue.wait();
             }
         }
+        LOGGER.debug("system message queue is empty");
 
+        LOGGER.debug("waiting for system message map");
         if (!systemMessageMap.isEmpty()) synchronized (systemMessageMap) {
             while (!systemMessageMap.isEmpty()) {
                 systemMessageMap.wait();
             }
         }
+        LOGGER.debug("system message map is empty");
     }
 
     @Override
@@ -383,10 +413,10 @@ class TOUSocketImpl extends SocketImpl {
 
         TCPSegmentType type = systemMessage.type();
         if (type == ACK && isConnected()) {
-            LOGGER.debug("Handle ACK {}", systemMessage.ackNumber());
+            LOGGER.debug("Remove data by ACK {}", systemMessage.ackNumber());
             TOUSegment touSegment = TOUFactory.createTOUSegmentByAck(systemMessage);
             systemMessageMap.remove(systemMessage);
-            segmentQueue.remove(touSegment);
+            segmentQueue.removeIf(s -> s.sequenceNumber() == systemMessage.ackNumber());
         } else if (type == FIN){
             if (isConnected()) {
                 passiveClose(systemMessage);
