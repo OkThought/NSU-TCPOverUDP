@@ -2,6 +2,7 @@ package ru.nsu.ccfit.bogush.tou;
 
 import ru.nsu.ccfit.bogush.tcp.TCPSegment;
 import ru.nsu.ccfit.bogush.tcp.TCPSegmentType;
+import ru.nsu.ccfit.bogush.tcp.TCPUnknownSegmentTypeException;
 
 import java.net.InetAddress;
 
@@ -10,34 +11,45 @@ public class TOUSystemMessage extends TOUSegment {
 
     private TCPSegmentType type;
 
-    TOUSystemMessage(TOUSystemMessage that) {
-        this(   that.type,
-                that.sourceAddress, that.sourcePort(),
-                that.destinationAddress, that.destinationPort(),
-                that.sequenceNumber(), that.ackNumber());
-    }
-
     TOUSystemMessage() {
         this(DEFAULT_TYPE);
     }
 
     TOUSystemMessage(TCPSegmentType type) {
-        this(type, null, 0, null, 0, 0);
+        this(type,
+            null, 0,
+            null, 0,
+            0, 0);
+    }
+
+    TOUSystemMessage(TOUSystemMessage that) {
+        this(that, that.type);
+    }
+
+    TOUSystemMessage(TOUSegment segment)
+            throws TCPUnknownSegmentTypeException {
+        this(segment, segment.type());
+    }
+
+    TOUSystemMessage(TOUSegment segment, TCPSegmentType type) {
+        super(new TCPSegment(segment.tcpSegment.header()), segment.sourceAddress, segment.destinationAddress);
+        this.type = type;
     }
 
     TOUSystemMessage(TCPSegmentType type,
-                            InetAddress sourceAddress, int sourcePort,
-                            InetAddress destinationAddress, int destinationPort,
-                            int systemMessage) {
+                     InetAddress sourceAddress, int sourcePort,
+                     InetAddress destinationAddress, int destinationPort,
+                     int systemMessage, long timeout) {
         this(type, sourceAddress, sourcePort, destinationAddress, destinationPort,
-                sequencePart(systemMessage), ackPart(systemMessage));
+                sequencePart(systemMessage), ackPart(systemMessage), timeout);
     }
 
     TOUSystemMessage(TCPSegmentType type,
-                            InetAddress sourceAddress, int sourcePort,
-                            InetAddress destinationAddress, int destinationPort,
-                            short sequenceNumber, short ackNumber) {
-        super(new TCPSegment(), sourceAddress, destinationAddress);
+                     InetAddress sourceAddress, int sourcePort,
+                     InetAddress destinationAddress, int destinationPort,
+                     short sequenceNumber, short ackNumber,
+                     long timeout) {
+        super(new TCPSegment(), sourceAddress, destinationAddress, timeout);
         this.type = type;
         super.type(type);
         super.sourcePort(sourcePort);
@@ -87,9 +99,12 @@ public class TOUSystemMessage extends TOUSegment {
 
         if (type != that.type) return false;
         if (sourcePort() != 0 && that.sourcePort() != 0 && sourcePort() != that.sourcePort()) return false;
-        if (destinationPort() != 0 && that.destinationPort() != 0 && destinationPort() != that.destinationPort()) return false;
-        if (sequenceNumber() != that.sequenceNumber()) return false;
-        if (ackNumber() != that.ackNumber()) return false;
+        if (destinationPort() != 0 && that.destinationPort() != 0 &&
+                destinationPort() != that.destinationPort()) return false;
+        boolean seqEqual = type != TCPSegmentType.ORDINARY || sequenceNumber() == that.sequenceNumber();
+        if (!seqEqual) return false;
+        boolean ackEqual = type != TCPSegmentType.ACK || ackNumber() == that.ackNumber();
+        if (!ackEqual) return false;
         if (sourceAddress != null && that.sourceAddress != null && !sourceAddress.equals(that.sourceAddress)) return false;
         return destinationAddress == null || that.destinationAddress == null || destinationAddress.equals(that.destinationAddress);
     }
