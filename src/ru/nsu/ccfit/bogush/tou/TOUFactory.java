@@ -79,10 +79,7 @@ class TOUFactory {
 
         TCPSegmentType type = synackOrFinack.type();
         TOUSystemMessage ack = new TOUSystemMessage(synackOrFinack);
-        ack.sourceAddress(synackOrFinack.destinationAddress());
-        ack.sourcePort(synackOrFinack.destinationPort());
-        ack.destinationAddress(synackOrFinack.sourceAddress());
-        ack.destinationPort(synackOrFinack.sourcePort());
+        swapSourceAndDestination(ack);
         ack.sequenceNumber(synackOrFinack.ackNumber());
         ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1));
         ack.setTimeout(0);
@@ -91,19 +88,39 @@ class TOUFactory {
         return LOGGER.traceExit(ack);
     }
 
-    static TOUSystemMessage createSegmentACK(short sequenceNumber, InetSocketAddress local, InetSocketAddress remote) {
-        LOGGER.traceEntry("seq: {} local: {} remote: {}", sequenceNumber, local, remote);
+    static TOUSystemMessage createACK(TOUSegment segment) {
+        TOUSystemMessage ack = new TOUSystemMessage(segment, ACK);
+        swapSourceAndDestination(ack);
+        ack.sequenceNumber((short) 0);
+        ack.ackNumber(segment.sequenceNumber());
+        return ack;
+    }
 
+    private static void swapSourceAndDestination(TOUSegment segment) {
+        InetAddress srcAddr = segment.sourceAddress;
+        segment.sourceAddress = segment.destinationAddress;
+        segment.destinationAddress = srcAddr;
+        int srcPort = segment.sourcePort();
+        segment.sourcePort(segment.destinationPort());
+        segment.destinationPort(srcPort);
+    }
+
+    private static TOUSystemMessage createACK(short sequenceNumber, InetSocketAddress local, InetSocketAddress remote) {
+        return createACK(sequenceNumber, local.getAddress(), local.getPort(), remote.getAddress(), remote.getPort());
+    }
+
+    private static TOUSystemMessage createACK(short sequenceNumber,
+                                              InetAddress localAddress, int localPort,
+                                              InetAddress remoteAddress, int remotePort) {
         TOUSystemMessage ack = new TOUSystemMessage();
-        ack.destinationAddress(remote.getAddress());
-        ack.destinationPort(remote.getPort());
-        ack.sourceAddress(local.getAddress());
-        ack.sourcePort(local.getPort());
+        ack.destinationAddress(remoteAddress);
+        ack.destinationPort(remotePort);
+        ack.sourceAddress(localAddress);
+        ack.sourcePort(localPort);
         ack.ackNumber(sequenceNumber);
         ack.setTimeout(0);
         ack.type(ACK);
-
-        return LOGGER.traceExit(ack);
+        return ack;
     }
 
     static boolean canMerge(TOUSegment segment, TOUSystemMessage systemMessage) {
@@ -212,8 +229,8 @@ class TOUFactory {
         return createSYNACKorFINACK(impl.localAddress(), impl.localPort(), synOrFin);
     }
 
-    TOUSystemMessage createSegmentACK(short sequenceNumber) {
-        return createSegmentACK(sequenceNumber, impl.localSocketAddress(), impl.remoteSocketAddress());
+    TOUSystemMessage createACK(short sequenceNumber) {
+        return createACK(sequenceNumber, impl.localSocketAddress(), impl.remoteSocketAddress());
     }
 
     TOUSegment createTOUSegment(byte[] data, short sequenceNumber) {
