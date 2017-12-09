@@ -52,28 +52,19 @@ class TOUSocketOutputStream extends OutputStream {
         }
 
         try {
-            synchronized (buffer) {
-                buffer.put((byte) b);
-                if (buffer.remaining() == 0) {
-                    impl.segmentQueue().put(wrap(buffer.array().clone()));
-                    incrementSequenceNumber();
-                    buffer.position(0);
+            if (!buffer.hasRemaining()) {
+                synchronized (buffer) {
+                    while (!buffer.hasRemaining()) {
+                        buffer.wait();
+                    }
                 }
             }
+            buffer.put((byte) b);
         } catch (InterruptedException e) {
             LOGGER.catching(e);
             throw LOGGER.throwing(new IOException(e));
         }
         LOGGER.traceExit();
-    }
-
-    private TOUSegment wrap(byte[] data) {
-        TCPSegment tcpSegment = new TCPSegment(data.length);
-        tcpSegment.sequenceNumber(sequenceNumber);
-        tcpSegment.data(data);
-        tcpSegment.sourcePort(impl.localPort());
-        tcpSegment.destinationPort(impl.port());
-        return new TOUSegment(tcpSegment, impl.localAddress(), impl.address());
     }
 
     private void incrementSequenceNumber() {
@@ -88,22 +79,19 @@ class TOUSocketOutputStream extends OutputStream {
     TOUSegment flushIntoSegment() {
         LOGGER.traceEntry();
 
-        byte[] data;
+        TOUSegment segment;
         synchronized (buffer) {
+            if (buffer.position() == 0) return null;
             int size = buffer.position();
             buffer.position(0);
-            data = new byte[size];
+            byte[] data = new byte[size];
             System.arraycopy(buffer.array(), 0, data, 0, size);
+            segment = impl.factory.createTOUSegment(data, sequenceNumber);
+            incrementSequenceNumber();
+            buffer.notify();
         }
 
-        synchronized (this) {
-            this.notifyAll();
-        }
-
-        TOUSegment touSegment = wrap(data);
-        incrementSequenceNumber();
-
-        return LOGGER.traceExit(touSegment);
+        return LOGGER.traceExit(segment);
     }
 
     @Override
