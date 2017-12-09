@@ -81,6 +81,14 @@ public class TCPSegment {
         bytes[FLAGS_POSITION] = flags;
     }
 
+    public void header(byte[] header) {
+        System.arraycopy(header, 0, bytes, 0, header.length);
+    }
+
+    public byte[] header() {
+        return Arrays.copyOfRange(bytes, 0, dataOffset());
+    }
+
     public void data(byte[] data) {
         System.arraycopy(data, 0, this.bytes, dataOffset(), data.length);
     }
