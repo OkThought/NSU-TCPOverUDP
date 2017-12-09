@@ -12,6 +12,8 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static ru.nsu.ccfit.bogush.tcp.TCPSegmentType.*;
+import static ru.nsu.ccfit.bogush.tou.TOUConstants.SEGMENT_TIMEOUT;
+import static ru.nsu.ccfit.bogush.tou.TOUConstants.SYSTEM_MESSAGE_TIMEOUT;
 
 class TOUFactory {
     static { TOULog4JUtils.initIfNotInitYet(); }
@@ -24,7 +26,7 @@ class TOUFactory {
     }
 
     static DatagramPacket packIntoUDP(TOUSegment segment) {
-        return packIntoUDP(segment.tcpSegment(), segment.destinationAddress());
+        return packIntoUDP(segment.tcpSegment, segment.destinationAddress());
     }
 
     static DatagramPacket packIntoUDP(TCPSegment segment, InetAddress destinationAddress) {
@@ -32,43 +34,28 @@ class TOUFactory {
         return new DatagramPacket(data, data.length, destinationAddress, segment.destinationPort());
     }
 
-    static TCPSegment unpackTCP(DatagramPacket segment) {
+    static TCPSegment unpackIntoTCP(DatagramPacket segment) {
         TCPSegment p = new TCPSegment(segment.getData(), segment.getOffset(), segment.getLength());
         p.sourcePort(segment.getPort());
         return p;
     }
 
-    static DatagramPacket packIntoUDP(TOUSystemMessage systemMessage) {
-        TCPSegment tcpSegment = createTCPSegment(systemMessage);
-        return packIntoUDP(tcpSegment, systemMessage.destinationAddress());
+    static TOUSegment unpackIntoTOU(DatagramPacket packet, InetAddress srcAddr, InetAddress dstAddr) {
+        return packIntoTOU(unpackIntoTCP(packet), srcAddr, dstAddr);
     }
 
-    static TCPSegment createTCPSegment(TOUSystemMessage systemMessage) {
-        TCPSegment p = new TCPSegment();
-        p.flags(systemMessage.type().toByte());
-        p.ackNumber(systemMessage.ackNumber());
-        p.sequenceNumber(systemMessage.sequenceNumber());
-        p.sourcePort(systemMessage.sourcePort());
-        p.destinationPort(systemMessage.destinationPort());
-        return p;
+    static TOUSegment packIntoTOU(TCPSegment segment, InetAddress srcAddr, InetAddress dstAddr) {
+        return new TOUSegment(segment, srcAddr, dstAddr, 0);
     }
 
-    static TOUSegment createTOUSegmentByAck(TOUSystemMessage systemMessage) {
-        TCPSegment p = new TCPSegment();
-        p.sourcePort(systemMessage.destinationPort());
-        p.destinationPort(systemMessage.sourcePort());
-        p.sequenceNumber(systemMessage.ackNumber());
-        return new TOUSegment(p, systemMessage.destinationAddress(), systemMessage.sourceAddress());
-    }
-
-    static TOUSystemMessage createSYNorFIN(TCPSegmentType type, InetAddress srcAddr, int srcPort, InetAddress dstAddr, int dstPort) {
-        LOGGER.traceEntry("source: {}:{} destination: {}:{}", srcAddr, srcPort, dstAddr, dstPort);
-        return LOGGER.traceExit(new TOUSystemMessage(type, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0));
+    static TOUSystemMessage createSYNorFIN(TCPSegmentType type,
+                                           InetAddress srcAddr, int srcPort,
+                                           InetAddress dstAddr, int dstPort) {
+        return new TOUSystemMessage(type, srcAddr, srcPort, dstAddr, dstPort, rand(), (short) 0, SYSTEM_MESSAGE_TIMEOUT);
     }
 
     private static short rand() {
-        LOGGER.traceEntry();
-        return LOGGER.traceExit((short) ThreadLocalRandom.current().nextInt());
+        return (short) ThreadLocalRandom.current().nextInt();
     }
 
     static TOUSystemMessage createSYNACKorFINACK(InetAddress localAddress, int localPort, TOUSystemMessage synOrFin) {
@@ -82,6 +69,7 @@ class TOUFactory {
         synack.type(synOrFin.type() == SYN ? SYNACK : FINACK);
         synack.ackNumber((short) (synOrFin.sequenceNumber() + 1));
         synack.sequenceNumber(rand());
+        synack.setTimeout(SYSTEM_MESSAGE_TIMEOUT);
 
         return LOGGER.traceExit(synack);
     }
@@ -97,6 +85,7 @@ class TOUFactory {
         ack.destinationPort(synackOrFinack.sourcePort());
         ack.sequenceNumber(synackOrFinack.ackNumber());
         ack.ackNumber((short) (synackOrFinack.sequenceNumber() + 1));
+        ack.setTimeout(0);
         ack.type(ACK);
 
         return LOGGER.traceExit(ack);
@@ -111,40 +100,21 @@ class TOUFactory {
         ack.sourceAddress(local.getAddress());
         ack.sourcePort(local.getPort());
         ack.ackNumber(sequenceNumber);
+        ack.setTimeout(0);
         ack.type(ACK);
 
         return LOGGER.traceExit(ack);
     }
 
-    static boolean canMerge(TOUSegment dataSegment, TOUSystemMessage systemMessage) {
-        if (dataSegment.typeByte() != 0) return false;
-        if (dataSegment.destinationPort() != systemMessage.destinationPort()) return false;
-        if (!dataSegment.destinationAddress().equals(systemMessage.destinationAddress())) return false;
-        switch (systemMessage.type()) {
-            case ACK:
-                return true;
-            case SYN:
-            case FIN:
-                return dataSegment.sequenceNumber() == systemMessage.systemMessage();
-            case SYNACK:
-            case FINACK:
-                return dataSegment.sequenceNumber() == systemMessage.sequenceNumber();
-        }
-        return false;
+    static boolean canMerge(TOUSegment segment, TOUSystemMessage systemMessage) {
+        // allow only ACK + ORDINARY merging
+        return  segment.typeByte() == 0 &&
+                systemMessage.type() == ACK;
     }
 
-    static boolean isMergedWithSystemMessage(TOUSegment dataSegment, TOUSystemMessage systemMessage) throws TCPUnknownSegmentTypeException {
-        switch (dataSegment.type()) {
-            case ACK:
-                return dataSegment.ackNumber() == systemMessage.systemMessage();
-            case SYN:
-            case FIN:
-                return dataSegment.sequenceNumber() == systemMessage.systemMessage();
-            case SYNACK:
-            case FINACK:
-                return dataSegment.sequenceAndAckNumbers() == systemMessage.systemMessage();
-        }
-        return false;
+    static boolean isMergedWithSystemMessage(TOUSegment dataSegment, TOUSystemMessage systemMessage) {
+        return  dataSegment.typeByte() == ACK.toByte() &&
+                dataSegment.ackNumber() == systemMessage.ackNumber();
     }
 
     static void merge(TOUSegment dataSegment, TOUSystemMessage systemMessage) {
@@ -152,7 +122,7 @@ class TOUFactory {
         dataSegment.ackNumber(systemMessage.ackNumber());
     }
 
-    static void unmerge(TOUSegment dataSegment) throws TCPUnknownSegmentTypeException {
+    static void unmerge(TOUSegment dataSegment)  {
         dataSegment.type(ORDINARY);
         dataSegment.ackNumber((short) 0);
     }
@@ -244,5 +214,14 @@ class TOUFactory {
 
     TOUSystemMessage createSegmentACK(short sequenceNumber) {
         return createSegmentACK(sequenceNumber, impl.localSocketAddress(), impl.remoteSocketAddress());
+    }
+
+    TOUSegment createTOUSegment(byte[] data, short sequenceNumber) {
+        TCPSegment tcpSegment = new TCPSegment(data.length);
+        tcpSegment.sequenceNumber(sequenceNumber);
+        tcpSegment.data(data);
+        tcpSegment.sourcePort(impl.localPort());
+        tcpSegment.destinationPort(impl.port());
+        return new TOUSegment(tcpSegment, impl.localAddress(), impl.address(), SEGMENT_TIMEOUT);
     }
 }
