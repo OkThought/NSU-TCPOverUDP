@@ -101,9 +101,9 @@ public class TOUSystemMessage extends TOUSegment {
         if (sourcePort() != 0 && that.sourcePort() != 0 && sourcePort() != that.sourcePort()) return false;
         if (destinationPort() != 0 && that.destinationPort() != 0 &&
                 destinationPort() != that.destinationPort()) return false;
-        boolean seqEqual = type != TCPSegmentType.ORDINARY || sequenceNumber() == that.sequenceNumber();
+        boolean seqEqual = type != TCPSegmentType.ACK || sequenceNumber() == that.sequenceNumber();
         if (!seqEqual) return false;
-        boolean ackEqual = type != TCPSegmentType.ACK || ackNumber() == that.ackNumber();
+        boolean ackEqual = !tcpSegment.isACK() || ackNumber() == that.ackNumber();
         if (!ackEqual) return false;
         if (sourceAddress != null && that.sourceAddress != null && !sourceAddress.equals(that.sourceAddress)) return false;
         return destinationAddress == null || that.destinationAddress == null || destinationAddress.equals(that.destinationAddress);
