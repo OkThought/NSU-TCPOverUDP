@@ -90,12 +90,8 @@ public class TOUSystemMessage extends TOUSegment {
         return tcpSegment.sequenceAndAckNumbers();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        TOUSystemMessage that = (TOUSystemMessage) o;
+    public boolean isEqualTo(TOUSystemMessage that) {
+        if (this == that) return true;
 
         if (type != that.type) return false;
         if (sourcePort() != 0 && that.sourcePort() != 0 && sourcePort() != that.sourcePort()) return false;

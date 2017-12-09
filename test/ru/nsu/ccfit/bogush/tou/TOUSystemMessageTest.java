@@ -50,13 +50,13 @@ public class TOUSystemMessageTest {
 
     @Test
     public void equalsSelf() throws Exception {
-        assertEquals(syn, new TOUSystemMessage(syn));
-        assertEquals(synack, new TOUSystemMessage(synack));
-        assertEquals(ack2synack, new TOUSystemMessage(ack2synack));
+        assertTrue(syn.isEqualTo(new TOUSystemMessage(syn)));
+        assertTrue(synack.isEqualTo(new TOUSystemMessage(synack)));
+        assertTrue(ack2synack.isEqualTo(new TOUSystemMessage(ack2synack)));
 
-        assertEquals(fin, new TOUSystemMessage(fin));
-        assertEquals(finack, new TOUSystemMessage(finack));
-        assertEquals(ack2finack, new TOUSystemMessage(ack2finack));
+        assertTrue(fin.isEqualTo(new TOUSystemMessage(fin)));
+        assertTrue(finack.isEqualTo(new TOUSystemMessage(finack)));
+        assertTrue(ack2finack.isEqualTo(new TOUSystemMessage(ack2finack)));
     }
 
     @Test
@@ -66,8 +66,8 @@ public class TOUSystemMessageTest {
         s = new TOUSystemMessage(SYN);
         s.destinationAddress(syn.destinationAddress);
         s.destinationPort(syn.destinationPort());
-        assertEquals(syn, s);
-        assertEquals(s, syn);
+        assertTrue(syn.isEqualTo(s));
+        assertTrue(s.isEqualTo(syn));
     }
 
     @Test
@@ -78,8 +78,8 @@ public class TOUSystemMessageTest {
         s.destinationAddress(synack.destinationAddress);
         s.destinationPort(synack.destinationPort());
         s.ackNumber(synack.ackNumber());
-        assertEquals(synack, s);
-        assertEquals(s, synack);
+        assertTrue(synack.isEqualTo(s));
+        assertTrue(s.isEqualTo(synack));
     }
 
     @Test
@@ -91,8 +91,8 @@ public class TOUSystemMessageTest {
         s.destinationPort(ack2synack.destinationPort());
         s.ackNumber(ack2synack.ackNumber());
         s.sequenceNumber(ack2synack.sequenceNumber());
-        assertEquals(ack2synack, s);
-        assertEquals(s, ack2synack);
+        assertTrue(ack2synack.isEqualTo(s));
+        assertTrue(s.isEqualTo(ack2synack));
     }
 
     @Test
@@ -102,8 +102,8 @@ public class TOUSystemMessageTest {
         s = new TOUSystemMessage(FIN);
         s.destinationAddress(fin.destinationAddress);
         s.destinationPort(fin.destinationPort());
-        assertEquals(fin, s);
-        assertEquals(s, fin);
+        assertTrue(fin.isEqualTo(s));
+        assertTrue(s.isEqualTo(fin));
     }
 
     @Test
@@ -114,8 +114,8 @@ public class TOUSystemMessageTest {
         s.destinationAddress(finack.destinationAddress);
         s.destinationPort(finack.destinationPort());
         s.ackNumber(finack.ackNumber());
-        assertEquals(finack, s);
-        assertEquals(s, finack);
+        assertTrue(finack.isEqualTo(s));
+        assertTrue(s.isEqualTo(finack));
     }
 
     @Test
@@ -127,17 +127,17 @@ public class TOUSystemMessageTest {
         s.destinationPort(ack2finack.destinationPort());
         s.ackNumber(ack2finack.ackNumber());
         s.sequenceNumber(ack2finack.sequenceNumber());
-        assertEquals(ack2finack, s);
-        assertEquals(s, ack2finack);
+        assertTrue(ack2finack.isEqualTo(s));
+        assertTrue(s.isEqualTo(ack2finack));
     }
 
     @Test
     public void notEqualByType() throws Exception {
-        for (TOUSystemMessage s1 : all) {
-            for (TOUSystemMessage s2 : all) {
-                if (s1 != s2) {
-                    assertNotEquals(s1, s2);
-                    assertNotEquals(s2, s1);
+        for (TOUSystemMessage a : all) {
+            for (TOUSystemMessage b : all) {
+                if (a != b) {
+                    assertFalse(a.isEqualTo(b));
+                    assertFalse(b.isEqualTo(a));
                 }
             }
         }
@@ -160,8 +160,8 @@ public class TOUSystemMessageTest {
         for (TOUSystemMessage a : different) {
             for (TOUSystemMessage b : different) {
                 if (a != b) {
-                    assertNotEquals(a + " == " + b, a, b);
-                    assertNotEquals(b + " == " + a, b, a);
+                    assertFalse(a + " == " + b, a.isEqualTo(b));
+                    assertFalse(b + " == " + a, b.isEqualTo(a));
                 }
             }
         }
@@ -191,8 +191,8 @@ public class TOUSystemMessageTest {
             for (TOUSystemMessage a : different) {
                 for (TOUSystemMessage b : different) {
                     if (a != b) {
-                        assertNotEquals(a + " == " + b, a, b);
-                        assertNotEquals(b + " == " + a, b, a);
+                        assertFalse(a + " == " + b, a.isEqualTo(b));
+                        assertFalse(b + " == " + a, b.isEqualTo(a));
                     }
                 }
             }
@@ -227,8 +227,8 @@ public class TOUSystemMessageTest {
             for (TOUSystemMessage a : different) {
                 for (TOUSystemMessage b : different) {
                     if (a != b) {
-                        assertNotEquals(a + " == " + b, a, b);
-                        assertNotEquals(b + " == " + a, b, a);
+                        assertFalse(a + " == " + b, a.isEqualTo(b));
+                        assertFalse(b + " == " + a, b.isEqualTo(a));
                     }
                 }
             }
