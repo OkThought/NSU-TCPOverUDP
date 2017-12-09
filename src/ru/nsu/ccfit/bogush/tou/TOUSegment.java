@@ -7,21 +7,25 @@ import ru.nsu.ccfit.bogush.tcp.TCPUnknownSegmentTypeException;
 import java.net.InetAddress;
 
 class TOUSegment {
-    protected TCPSegment tcpSegment;
-    protected InetAddress sourceAddress;
-    protected InetAddress destinationAddress;
-    protected long timeExpires;
+    TCPSegment tcpSegment;
+    InetAddress sourceAddress;
+    InetAddress destinationAddress;
+    private long timeExpires = 0;
+    private long timeout;
+
+    TOUSegment(TOUSegment other) {
+        this(new TCPSegment(other.tcpSegment), other.sourceAddress, other.destinationAddress);
+    }
 
     TOUSegment(TCPSegment tcpSegment, InetAddress sourceAddress, InetAddress destinationAddress) {
+        this(tcpSegment, sourceAddress, destinationAddress, 0);
+    }
+
+    TOUSegment(TCPSegment tcpSegment, InetAddress sourceAddress, InetAddress destinationAddress, long timeout) {
         this.tcpSegment = tcpSegment;
         this.sourceAddress = sourceAddress;
         this.destinationAddress = destinationAddress;
-    }
-
-    TOUSegment(TOUSegment other) {
-        this.tcpSegment = new TCPSegment(other.tcpSegment);
-        this.sourceAddress = other.sourceAddress;
-        this.destinationAddress = other.destinationAddress;
+        this.timeout = timeout;
     }
 
     void tcpSegment(TCPSegment tcpSegment) {
@@ -56,15 +60,15 @@ class TOUSegment {
         return tcpSegment.sequenceNumber();
     }
 
-    public void ackNumber(short ackNumber) {
+    void ackNumber(short ackNumber) {
         tcpSegment.ackNumber(ackNumber);
     }
 
-    public short ackNumber() {
+    short ackNumber() {
         return tcpSegment.ackNumber();
     }
 
-    public int sequenceAndAckNumbers() {
+    int sequenceAndAckNumbers() {
         return tcpSegment.sequenceAndAckNumbers();
     }
 
@@ -100,16 +104,17 @@ class TOUSegment {
         return tcpSegment.destinationPort();
     }
 
-    long timeExpires() {
-        return timeExpires;
-    }
-
-    void timeExpires(long newValue) {
-        timeExpires = newValue;
-    }
-
     boolean needsResending() {
-        return true;
+        long currentTime = System.currentTimeMillis();
+        if (timeExpires == 0) {
+            timeExpires = currentTime + timeout;
+        }
+        return timeExpires >= currentTime;
+    }
+
+    void setTimeout(long timeout) {
+        timeExpires = 0;
+        this.timeout = timeout;
     }
 
     @Override
