@@ -156,16 +156,14 @@ public class TCPSegment {
         return bytes.length - dataOffset();
     }
 
+    public String typeByteToString() {
+        return String.valueOf(isSYN() ? 'S' : '-') + (isACK() ? 'A' : '-') + (isFIN() ? 'F' : '-');
+    }
+
     @Override
     public String toString() {
-        String type;
-        try {
-            type = String.valueOf(TCPSegmentType.typeOf(this));
-        } catch (TCPUnknownSegmentTypeException ignored) {
-            type = "UNKNOWN";
-        }
-        return String.format("TCPSegment <%s sequence: %d ack: %d src: %d dst: %d data size: %d>",
-                type, sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataSize());
+        return String.format("TCPSegment [%s seq: %d ack: %d src: %d dst: %d data offset: %d size: %d]",
+            typeByteToString(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataOffset(), bytes.length);
     }
 
     private static int unsignedShortToInt(short value) {
