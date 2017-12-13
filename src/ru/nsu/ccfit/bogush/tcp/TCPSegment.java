@@ -152,6 +152,10 @@ public class TCPSegment {
         return bytes;
     }
 
+    public int size() {
+        return bytes.length;
+    }
+
     public int dataSize() {
         return bytes.length - dataOffset();
     }
@@ -163,7 +167,7 @@ public class TCPSegment {
     @Override
     public String toString() {
         return String.format("TCPSegment [%s seq: %d ack: %d src: %d dst: %d data offset: %d size: %d]",
-            typeByteToString(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataOffset(), bytes.length);
+            typeByteToString(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataOffset(), size());
     }
 
     private static int unsignedShortToInt(short value) {
