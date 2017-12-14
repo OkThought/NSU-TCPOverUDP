@@ -2,17 +2,17 @@ package ru.nsu.ccfit.bogush.tou;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.nsu.ccfit.bogush.tcp.TCPSegment;
 import ru.nsu.ccfit.bogush.tcp.TCPSegmentType;
+import ru.nsu.ccfit.bogush.tcp.TCPUnknownSegmentTypeException;
 
 import java.io.IOException;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
+import java.util.WeakHashMap;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-import static ru.nsu.ccfit.bogush.tcp.TCPSegmentType.ORDINARY;
+import static ru.nsu.ccfit.bogush.tcp.TCPSegmentType.*;
 import static ru.nsu.ccfit.bogush.tou.TOUConstants.*;
 
 class TOUCommunicator {
@@ -21,152 +21,113 @@ class TOUCommunicator {
 
     private final DatagramSocket udpSocket;
     private final DatagramPacket udpPacket;
-    private final ConcurrentHashMap<InetSocketAddress, ArrayList<TOUSocketImpl>> socketMap;
-    private final Thread sender;
-    private final Thread receiver;
+    private final ArrayBlockingQueue<TOUSegment> segments;
+    private final Sender sender;
+    private final Receiver receiver;
+    private final WeakHashMap<InetSocketAddress, TOUSocketImpl> implMap;
 
-    TOUCommunicator(DatagramSocket datagramSocket) throws IOException {
+    TOUCommunicator(WeakHashMap<InetSocketAddress, TOUSocketImpl> implMap, DatagramSocket udpSocket) throws IOException {
         LOGGER.traceEntry();
 
-        this.udpSocket = datagramSocket;
+        this.implMap = implMap;
+        this.udpSocket = udpSocket;
         this.udpPacket = new DatagramPacket(new byte[MAX_PACKET_SIZE], MAX_PACKET_SIZE);
-        this.socketMap = new ConcurrentHashMap<>();
-        this.sender = new Thread(() -> {
-            LOGGER.traceEntry();
-            try {
-                while (!Thread.interrupted()) {
-                    for (ArrayList<TOUSocketImpl> impls : socketMap.values()) {
-                        // serialize access to impl list
-                        synchronized (this) {
-                            for (TOUSocketImpl impl : impls) {
-                                sendSystemMessages(impl);
-                                sendSegment(impl);
-                            }
-                        }
-                    }
-                }
-            } catch (InterruptedException | IOException e) {
-                LOGGER.catching(e);
-//                e.printStackTrace();
-            }
-            LOGGER.traceExit();
-        }, "sender");
-
-        this.receiver = new Thread(() -> {
-            LOGGER.traceEntry();
-
-            try {
-                while (!Thread.interrupted()) {
-                    LOGGER.trace("waiting to datagramSocket.receive");
-                    try {
-                        udpSocket.receive(udpPacket);
-                    } catch (SocketTimeoutException e) {
-                        LOGGER.trace("datagramSocket.receive timed out");
-                        continue;
-                    }
-                    processReceivedPacket(udpPacket);
-                }
-            } catch (IOException e) {
-                LOGGER.catching(e);
-//                e.printStackTrace();
-            }
-
-            LOGGER.traceExit();
-        }, "receiver");
+        this.segments = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+        this.sender = new Sender();
+        this.receiver = new Receiver();
 
         LOGGER.traceExit();
     }
 
-    private void processReceivedPacket(DatagramPacket packet) throws IOException {
-        InetAddress srcAddr = packet.getAddress();
-        InetAddress dstAddr = udpSocket.getLocalAddress();
-        TCPSegment tcpSegment = TOUFactory.unpackTCP(packet);
-        LOGGER.debug("received {}", tcpSegment);
+    private void processSegment(TOUSegment segment)
+            throws TCPUnknownSegmentTypeException {
+        LOGGER.traceEntry("{}", segment);
 
-        InetSocketAddress destination = new InetSocketAddress(dstAddr, tcpSegment.destinationPort());
-        ArrayList<TOUSocketImpl> impls = socketMap.get(destination);
-        if (impls == null || impls.isEmpty()) {
-            LOGGER.warn("Received packet to unknown socket address: {}:{}",
-                    destination.getAddress(), destination.getPort());
-            return;
-        }
-        LOGGER.trace("got impls appropriate to {}: {}", destination, impls);
+        InetSocketAddress local = new InetSocketAddress(segment.destinationAddress, segment.destinationPort());
+        InetSocketAddress remote = new InetSocketAddress(segment.sourceAddress, segment.sourcePort());
+        TOUSocketImpl serverImpl = implMap.get(local);
+        TOUSocketImpl associatedImpl = implMap.get(remote);
 
-        if (tcpSegment.dataSize() > 0) {
-            LOGGER.trace("this packet contains data");
-            short key = tcpSegment.sequenceNumber();
-            for (TOUSocketImpl impl : impls) {
-                if (impl.isConnected()) {
-                    LOGGER.trace("put data into segmentMap at the key: {}", key);
-                    impl.segmentMap().put(key, tcpSegment.data());
-                    sendOnce(impl.factory.createSegmentACK(key));
-                }
+        TCPSegmentType type = segment.type();
+        int dataSize = segment.tcpSegment.dataSize();
+
+        // check the presence of associated impls
+        if (type == ACK) {
+            if (associatedImpl == null && serverImpl == null) {
+                LOGGER.warn("no associated impl with address: {}", local);
+                LOGGER.warn("no associated impl with address: {}", remote);
+                return;
             }
         }
 
-        TCPSegmentType segmentType = TCPSegmentType.typeOf(tcpSegment);
-        if (segmentType == ORDINARY) {
-            return;
-        }
-
-        TOUSystemMessage systemMessage = TOUFactory.createSystemMessage(tcpSegment, segmentType, srcAddr, dstAddr);
-        LOGGER.trace("received system message: {}", systemMessage);
-        for (TOUSocketImpl impl : impls) {
-            impl.systemMessageReceived(systemMessage);
-        }
-    }
-
-    private void sendSystemMessages(TOUSocketImpl impl) throws InterruptedException, IOException {
-        LOGGER.traceEntry();
-
-        while (true) {
-            TOUSystemMessage systemMessage = impl.systemMessageQueue().poll(SYSTEM_PACKET_POLL_TIMEOUT, TimeUnit.MILLISECONDS);
-            if (systemMessage != null) LOGGER.trace("polled {}", systemMessage);
-            if (systemMessage == null) break;
-
-            TOUSegment segment = tryToMergeWithAnySegment(systemMessage, impl.segmentQueue());
-            if (segment != null) {
-                send(segment);
-            } else {
-                send(systemMessage);
+        if (dataSize > 0 || type == FIN || type == FINACK) {
+            if (associatedImpl == null) {
+                LOGGER.warn("no associated impl with address: {}", remote);
+                return;
+            }
+        } else if (type == SYN || type == SYNACK) {
+            if (serverImpl == null) {
+                LOGGER.warn("no associated impl with address: {}", local);
+                return;
             }
         }
 
-        LOGGER.traceExit();
-    }
-
-    private TOUSegment tryToMergeWithAnySegment(TOUSystemMessage systemMessage, BlockingQueue<TOUSegment> segments)
-            throws InterruptedException {
-        LOGGER.traceEntry("system message: {}", () -> systemMessage);
-
-        for (TOUSegment segment : segments) {
-            if (TOUFactory.canMerge(segment, systemMessage)) {
-                TOUFactory.merge(segment, systemMessage);
-                return segment;
-            }
+        if (dataSize > 0) {
+            // segment contains data
+            LOGGER.trace("segment with data");
+            associatedImpl.processSegment(segment);
+            if (type == ORDINARY) return;
         }
 
-        return LOGGER.traceExit("null", null);
+        TOUSystemMessage systemMessage = new TOUSystemMessage(segment, type);
+
+        if (type == ACK) {
+            removeByACK(systemMessage);
+            if (associatedImpl != null) {
+                associatedImpl.setSystemMessage(systemMessage);
+            }
+
+            if (serverImpl != null) {
+                serverImpl.setSystemMessage(systemMessage);
+            }
+        } else if (type == SYN || type == SYNACK) {
+            serverImpl.setSystemMessage(new TOUSystemMessage(segment, type));
+        } else if (type == FIN) {
+            associatedImpl.processFIN(systemMessage);
+        } else if (type == FINACK) {
+            associatedImpl.setSystemMessage(systemMessage);
+        } else {
+            throw new TCPUnknownSegmentTypeException();
+        }
     }
 
-    private void send(TOUSystemMessage systemMessage) throws IOException {
-        LOGGER.traceEntry("system message: {}", () -> systemMessage);
+    void send(TOUSegment segment) throws IOException, InterruptedException {
+        LOGGER.traceEntry("segment: {}", () -> segment);
 
-        LOGGER.debug("send system message: {}", systemMessage);
-        DatagramPacket packet = TOUFactory.packIntoUDP(systemMessage);
-        send(packet);
-
-        LOGGER.traceExit();
-    }
-
-    private void send(TOUSegment segment) throws IOException {
-        LOGGER.traceEntry("data segment: {}", () -> segment);
-
-        LOGGER.debug("send data segment: {}", segment);
+        LOGGER.debug("send segment: {}", segment);
         DatagramPacket packet = TOUFactory.packIntoUDP(segment);
         send(packet);
+        if (segment.needsResending()) {
+            synchronized (segments) {
+                segments.put(segment);
+                segments.notifyAll();
+            }
+        }
 
         LOGGER.traceExit();
+    }
+
+    private void removeByACK(TOUSystemMessage ack) {
+        segments.removeIf(s ->
+                Objects.equals(s.destinationAddress, ack.destinationAddress) &&
+                Objects.equals(s.sourceAddress, ack.sourceAddress) &&
+                s.destinationPort() == ack.destinationPort() &&
+                s.sourcePort() == ack.sourcePort() &&
+                s.sequenceNumber() == ack.ackNumber());
+    }
+
+    void removeByReference(Object o) {
+        segments.removeIf(s -> s == o);
     }
 
     private void send(DatagramPacket packet) throws IOException {
@@ -175,49 +136,40 @@ class TOUCommunicator {
         LOGGER.trace("sent {}", () -> TOULog4JUtils.toString(packet));
     }
 
-    private void sendSegment(TOUSocketImpl impl) throws IOException, InterruptedException {
+    private void sendSegment() throws IOException, InterruptedException {
         LOGGER.traceEntry();
 
+        TOUSegment segment = flushAvailableOutputStream();
 
-        TOUSegment segment;
-        segment = impl.segmentQueue().poll(DATA_PACKET_POLL_TIMEOUT, TimeUnit.MILLISECONDS);
-        LOGGER.trace("polled {}", segment);
-        if (segment != null) {
-        } else if (impl.isConnected()) {
-            segment = flushBufferIfAvailable(impl);
+        if (segment == null) {
+            segment = segments.poll(SEGMENT_POLL_TIMEOUT, TimeUnit.MILLISECONDS);
+            LOGGER.trace("polled {}", segment);
         }
 
         if (segment != null) {
             send(segment);
-            if (segment.needsResending()) {
-                impl.segmentQueue().put(segment);
+        }
+
+        LOGGER.traceExit();
+    }
+
+    private TOUSegment flushAvailableOutputStream() {
+        LOGGER.traceEntry();
+
+        TOUSegment segment = null;
+        for (TOUSocketImpl impl : implMap.values()) {
+            if (impl == null) continue;
+
+            if (impl.outputStream == null) continue;
+
+            segment = impl.outputStream.flushIntoSegment();
+
+            if (segment != null) {
+                break;
             }
         }
 
-        LOGGER.traceExit();
-    }
-
-    private TOUSegment flushBufferIfAvailable(TOUSocketImpl impl) {
-        LOGGER.traceEntry();
-
-        TOUSegment result = null;
-        if (impl.outputStream != null && impl.outputStream.available() > 0) {
-            result = impl.outputStream.flushIntoSegment();
-        }
-
-        return LOGGER.traceExit(result);
-    }
-
-    synchronized void addSocketImpl(TOUSocketImpl impl) {
-        LOGGER.traceEntry("{}", impl);
-
-        InetSocketAddress key = impl.localSocketAddress();
-        if (!socketMap.containsKey(key)) {
-            socketMap.put(key, new ArrayList<>());
-        }
-        socketMap.get(key).add(impl);
-
-        LOGGER.traceExit();
+        return LOGGER.traceExit(segment);
     }
 
     synchronized void startIfNotAlive() {
@@ -242,24 +194,59 @@ class TOUCommunicator {
         LOGGER.traceExit();
     }
 
-    void sendOnce(TOUSegment segment) throws IOException {
-        LOGGER.traceEntry(() -> segment);
-
-        send(segment);
-
-        LOGGER.traceExit();
-    }
-
-    void sendOnce(TOUSystemMessage systemMessage) throws IOException {
-        LOGGER.traceEntry(() -> systemMessage);
-
-        send(systemMessage);
-
-        LOGGER.traceExit();
-    }
-
     @Override
     public String toString() {
         return "TOUCommunicator <" + TOULog4JUtils.toString(udpSocket) + '>';
+    }
+
+    private class Sender extends Thread {
+        private final Logger logger = LogManager.getLogger("Sender");
+
+        private Sender() {
+            super("Sender");
+        }
+
+        @Override
+        public void run() {
+            logger.traceEntry();
+            try {
+                while (!Thread.interrupted()) {
+                    sendSegment();
+                }
+            } catch (InterruptedException | IOException e) {
+                logger.catching(e);
+            }
+            logger.traceExit();
+        }
+    }
+
+    private class Receiver extends Thread {
+        private final Logger logger = LogManager.getLogger("Receiver");
+
+        private Receiver() {
+            super("Receiver");
+        }
+        @Override
+        public void run() {
+            logger.traceEntry();
+            try {
+                while (!Thread.interrupted()) {
+                    logger.trace("waiting to udpSocket.receive");
+                    try {
+                        udpSocket.receive(udpPacket);
+                    } catch (SocketTimeoutException e) {
+                        logger.trace("udpSocket.receive timed out");
+                        continue;
+                    }
+                    TOUSegment segment = TOUFactory.unpackIntoTOU(udpPacket,
+                            udpSocket.getLocalAddress(), udpPacket.getAddress());
+                    logger.debug("received {}", segment);
+                    processSegment(segment);
+                }
+            } catch (IOException e) {
+                logger.catching(e);
+            }
+            logger.traceExit();
+        }
     }
 }
