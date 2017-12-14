@@ -58,9 +58,32 @@ class TOUCommunicator {
                 LOGGER.warn("no associated impl with address: {}", remote);
                 return;
             }
+
+            TOUSystemMessage ack = new TOUSystemMessage(segment, type);
+
+            removeByACK(ack);
+
+            if (associatedImpl != null) {
+                associatedImpl.setSystemMessage(ack);
+            }
+
+            if (serverImpl != null) {
+                serverImpl.setSystemMessage(ack);
+            }
+
+            if (dataSize > 0) {
+                if (associatedImpl == null) {
+                    LOGGER.warn("no associated impl with address: {}", remote);
+                } else {
+                    LOGGER.trace("segment with data");
+                    associatedImpl.processSegment(segment);
+                }
+            }
+
+            return;
         }
 
-        if (dataSize > 0 || type == FIN || type == FINACK) {
+        if (type == FIN || type == FINACK) {
             if (associatedImpl == null) {
                 LOGGER.warn("no associated impl with address: {}", remote);
                 return;
@@ -72,25 +95,9 @@ class TOUCommunicator {
             }
         }
 
-        if (dataSize > 0) {
-            // segment contains data
-            LOGGER.trace("segment with data");
-            associatedImpl.processSegment(segment);
-            if (type == ORDINARY) return;
-        }
-
         TOUSystemMessage systemMessage = new TOUSystemMessage(segment, type);
 
-        if (type == ACK) {
-            removeByACK(systemMessage);
-            if (associatedImpl != null) {
-                associatedImpl.setSystemMessage(systemMessage);
-            }
-
-            if (serverImpl != null) {
-                serverImpl.setSystemMessage(systemMessage);
-            }
-        } else if (type == SYN || type == SYNACK) {
+        if (type == SYN || type == SYNACK) {
             serverImpl.setSystemMessage(new TOUSystemMessage(segment, type));
         } else if (type == FIN) {
             associatedImpl.processFIN(systemMessage);
