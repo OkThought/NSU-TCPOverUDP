@@ -4,70 +4,77 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.net.*;
 
 import static org.junit.Assert.*;
 
 public class TOUTest {
-    private static final long CONNECT_TIMEOUT = 1;
-//    private TOUServerSocket serverSocket;
-//    private TOUSocket clientSocket;
-//    private TOUSocket acceptedSocket;
+    private static final long ACCEPT_TIMEOUT = 10;
+    private ServerSocket serverSocket;
+    private Socket clientSocket;
+    private Socket acceptedSocket;
     private InetAddress localHost;
     private final int serverPort = 50000;
-    private final int clientPort = serverPort + 1;
-    private Thread clientThread;
+    private Thread acceptor;
 
     @Before
     public void setUp() throws Exception {
-//        serverSocket = new TOUServerSocket();
-//        clientSocket = new TOUSocket();
+        SocketImplFactory implFactory = new TOUSocketImplFactory();
+        Socket.setSocketImplFactory(implFactory);
+        ServerSocket.setSocketFactory(implFactory);
+        serverSocket = new ServerSocket();
         localHost = InetAddress.getLocalHost();
-        clientThread = new Thread(() -> {
-//            try {
-//                clientSocket.connect(localHost, serverPort);
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//            assertTrue(clientSocket.isConnected());
-        }, "client");
+        acceptor = new Thread(() -> {
+            try {
+                acceptedSocket = serverSocket.accept();
+                acceptedSocket.getOutputStream().write("TEST".getBytes());
+            } catch (IOException e) {
+                e.printStackTrace();
+                assertFalse(true);
+            }
+        }, "acceptor");
     }
 
     @Test
     public void test() throws IOException, InterruptedException {
         bind();
-        accept();
         connect();
-        close();
+//        write();
+        read();
+        close(clientSocket);
+        close(acceptedSocket);
     }
 
-    public void bind() throws IOException {
-//        assertFalse(serverSocket.isBound());
-//        serverSocket.bind(new InetSocketAddress(localHost, serverPort));
-//        assertTrue(serverSocket.isBound());
-
-//        assertFalse(clientSocket.isBound());
-//        clientSocket.bind(new InetSocketAddress(localHost, clientPort));
-//        assertTrue(clientSocket.isBound());
+    private void bind() throws IOException {
+        assertFalse(serverSocket.isBound());
+        serverSocket.bind(new InetSocketAddress(localHost, serverPort));
+        assertTrue(serverSocket.isBound());
     }
 
-    public void connect() throws IOException, InterruptedException {
+    private void connect() throws IOException, InterruptedException {
 //        assertFalse(clientSocket.isConnected());
-        clientThread.start();
-        assertTrue(clientThread.isAlive());
-        clientThread.join(CONNECT_TIMEOUT);
-        assertFalse(clientThread.isAlive());
-//        assertTrue(clientSocket.isConnected());
+        acceptor.start();
+        assertTrue(acceptor.isAlive());
+        clientSocket = new Socket(localHost, serverPort);
+        acceptor.join(ACCEPT_TIMEOUT);
+        assertFalse(acceptor.isAlive());
+        assertTrue(clientSocket.isConnected());
     }
 
-    public void accept() throws IOException {
-//        acceptedSocket = serverSocket.accept();
-//        assertNotNull(acceptedSocket);
-//        assertTrue(acceptedSocket.isConnected());
+    private void write() {
+
     }
 
-    public void close() {
+    private void read() throws IOException {
+        byte[] bytes = new byte[10];
+        int bytesRead = clientSocket.getInputStream().read(bytes);
+        System.out.println(new String(bytes, 0, bytesRead));
+    }
 
+    private void close(Socket c) throws IOException {
+        assertNotNull(c);
+        assertFalse(c.isClosed());
+        c.close();
+        assertTrue(c.isClosed());
     }
 }
