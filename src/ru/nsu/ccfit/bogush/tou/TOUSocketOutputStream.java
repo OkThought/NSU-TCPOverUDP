@@ -16,12 +16,13 @@ class TOUSocketOutputStream extends OutputStream {
 
     private final TOUSocketImpl impl;
     private final ByteBuffer buffer;
-    private short sequenceNumber = 0;
+    private short sequenceNumber;
 
     public TOUSocketOutputStream(TOUSocketImpl impl) {
         LOGGER.traceEntry("impl: {}", ()->impl);
 
         this.impl = impl;
+        this.sequenceNumber = impl.initialSequenceNumber;
         this.buffer = ByteBuffer.allocate(MAX_DATA_SIZE);
 
         LOGGER.traceExit();
@@ -87,6 +88,7 @@ class TOUSocketOutputStream extends OutputStream {
             byte[] data = new byte[size];
             System.arraycopy(buffer.array(), 0, data, 0, size);
             segment = impl.factory.createTOUSegment(data, sequenceNumber);
+            impl.mergeWithAckIfPending(segment);
             incrementSequenceNumber();
             buffer.notify();
         }
