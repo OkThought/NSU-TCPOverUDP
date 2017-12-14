@@ -83,12 +83,12 @@ class TOUCommunicator {
             return;
         }
 
-        if (type == FIN || type == FINACK) {
+        if (type == FIN || type == FINACK || type == SYNACK) {
             if (associatedImpl == null) {
                 LOGGER.warn("no associated impl with address: {}", remote);
                 return;
             }
-        } else if (type == SYN || type == SYNACK) {
+        } else if (type == SYN) {
             if (serverImpl == null) {
                 LOGGER.warn("no associated impl with address: {}", local);
                 return;
@@ -97,11 +97,11 @@ class TOUCommunicator {
 
         TOUSystemMessage systemMessage = new TOUSystemMessage(segment, type);
 
-        if (type == SYN || type == SYNACK) {
+        if (type == SYN) {
             serverImpl.setSystemMessage(new TOUSystemMessage(segment, type));
         } else if (type == FIN) {
             associatedImpl.processFIN(systemMessage);
-        } else if (type == FINACK) {
+        } else if (type == FINACK || type == SYNACK) {
             associatedImpl.setSystemMessage(systemMessage);
         } else {
             throw new TCPUnknownSegmentTypeException();
