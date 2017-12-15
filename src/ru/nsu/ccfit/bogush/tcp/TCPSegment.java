@@ -166,8 +166,9 @@ public class TCPSegment {
 
     @Override
     public String toString() {
-        return String.format("TCPSegment [%s seq: %d ack: %d src: %d dst: %d data offset: %d size: %d]",
-            typeByteToString(), sequenceNumber(), ackNumber(), sourcePort(), destinationPort(), dataOffset(), size());
+        return String.format("%16s[%s seq: %5d ack: %5d src: %6d dst: %6d data offset: %3d size: %3d]",
+                TCPSegment.class.getSimpleName(), typeByteToString(), sequenceNumber() & 0xffff, ackNumber() & 0xffff,
+                sourcePort(), destinationPort(), dataOffset(), size());
     }
 
     private static int unsignedShortToInt(short value) {
