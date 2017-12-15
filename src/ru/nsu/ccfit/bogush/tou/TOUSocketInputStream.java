@@ -39,7 +39,7 @@ class TOUSocketInputStream extends InputStream {
                     throw LOGGER.throwing(new IOException("Stream closed"));
                 }
                 short seq = sequenceNumber;
-                byte[] data = impl.nextData(seq);
+                byte[] data = impl.nextDataSegment(seq);
                 if (data == null) {
                     eof = true;
                     return LOGGER.traceExit(-1);
