@@ -26,7 +26,8 @@ class TOUCommunicator {
     private final Receiver receiver;
     private final WeakHashMap<InetSocketAddress, TOUSocketImpl> implMap;
 
-    TOUCommunicator(WeakHashMap<InetSocketAddress, TOUSocketImpl> implMap, DatagramSocket udpSocket) throws IOException {
+    TOUCommunicator(WeakHashMap<InetSocketAddress, TOUSocketImpl> implMap, DatagramSocket udpSocket)
+            throws IOException {
         LOGGER.traceEntry();
 
         this.implMap = implMap;
@@ -108,7 +109,8 @@ class TOUCommunicator {
         }
     }
 
-    void send(TOUSegment segment) throws IOException, InterruptedException {
+    void send(TOUSegment segment)
+            throws IOException, InterruptedException {
         LOGGER.traceEntry("{}", () -> segment);
 
         LOGGER.debug("send {}", segment);
@@ -124,13 +126,15 @@ class TOUCommunicator {
         LOGGER.traceExit();
     }
 
-    private void send(DatagramPacket packet) throws IOException {
+    private void send(DatagramPacket packet)
+            throws IOException {
         LOGGER.trace("waiting to socket.send({})", () -> TOULog4JUtils.toString(packet));
         udpSocket.send(packet);
         LOGGER.trace("sent {}", () -> TOULog4JUtils.toString(packet));
     }
 
-    private void sendSegment() throws IOException, InterruptedException {
+    private void sendSegment()
+            throws IOException, InterruptedException {
         LOGGER.traceEntry();
 
         TOUSegment segment = flushAvailableOutputStream();
