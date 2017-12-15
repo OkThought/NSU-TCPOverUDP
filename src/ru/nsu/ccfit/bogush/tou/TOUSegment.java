@@ -105,6 +105,7 @@ class TOUSegment {
     }
 
     boolean needsResending() {
+        if (timeout <= 0) return false;
         long currentTime = System.currentTimeMillis();
         if (timeExpires == 0) {
             timeExpires = currentTime + timeout;
@@ -113,7 +114,7 @@ class TOUSegment {
     }
 
     void setTimeout(long timeout) {
-        timeExpires = 0;
+        timeExpires = timeout <= 0 ? -1 : 0;
         this.timeout = timeout;
     }
 
