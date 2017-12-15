@@ -86,7 +86,8 @@ class TOUSocketImpl extends SocketImpl {
         return closePending;
     }
 
-    byte[] nextDataSegment(short sequenceNumber) throws InterruptedException {
+    byte[] nextDataSegment(short sequenceNumber)
+            throws InterruptedException {
         LOGGER.trace("Request next data segment with seq: {}", sequenceNumber);
 
         byte[] dataSegment;
@@ -102,18 +103,21 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected void create(boolean stream) throws IOException {
+    protected void create(boolean stream)
+            throws IOException {
         LOGGER.traceEntry("stream: {}", stream);
         LOGGER.traceExit();
     }
 
     @Override
-    protected void connect(String host, int port) throws IOException {
+    protected void connect(String host, int port)
+            throws IOException {
         connect(InetAddress.getByName(host), port);
     }
 
     @Override
-    protected void connect(SocketAddress address, int timeout) throws IOException {
+    protected void connect(SocketAddress address, int timeout)
+            throws IOException {
         LOGGER.traceEntry("address: {} timeout: {}", ()->address, ()->timeout);
 
         // ignores timeout
@@ -128,7 +132,8 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected void connect(InetAddress address, int port) throws IOException {
+    protected void connect(InetAddress address, int port)
+            throws IOException {
         LOGGER.traceEntry("{}:{}", address, port);
 
         bind(localAddress, 0);
@@ -161,7 +166,8 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected void bind(InetAddress address, int port) throws IOException {
+    protected void bind(InetAddress address, int port)
+            throws IOException {
         LOGGER.traceEntry("{}:{}", address, port);
 
         if (isClosedOrPending()) {
@@ -183,7 +189,8 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected void listen(int backlog) throws IOException {
+    protected void listen(int backlog)
+            throws IOException {
         LOGGER.traceEntry("backlog: {}", backlog);
 
         implMap = new WeakHashMap<>();
@@ -196,7 +203,8 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected void accept(SocketImpl s) throws IOException {
+    protected void accept(SocketImpl s)
+            throws IOException {
         TOUSocketImpl impl = (TOUSocketImpl) s;
         LOGGER.traceEntry(()->impl);
 
@@ -393,7 +401,8 @@ class TOUSocketImpl extends SocketImpl {
         }
     }
 
-    private TOUSystemMessage receiveSYN(InetAddress localAddress, int localPort) throws IOException {
+    private TOUSystemMessage receiveSYN(InetAddress localAddress, int localPort)
+            throws IOException {
         LOGGER.traceEntry("local address: {} local port: {}", localAddress, localPort);
 
         try {
@@ -520,7 +529,8 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    protected void sendUrgentData(int data) throws IOException {
+    protected void sendUrgentData(int data)
+            throws IOException {
         LOGGER.traceEntry();
         LOGGER.traceExit();
     }
@@ -531,13 +541,15 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     @Override
-    public void setOption(int optID, Object value) throws SocketException {
+    public void setOption(int optID, Object value)
+            throws SocketException {
         LOGGER.traceEntry();
         LOGGER.traceExit();
     }
 
     @Override
-    public Object getOption(int optID) throws SocketException {
+    public Object getOption(int optID)
+            throws SocketException {
         LOGGER.traceEntry();
         return LOGGER.traceExit("{}", null);
     }
