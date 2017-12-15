@@ -141,6 +141,11 @@ class TOUCommunicator {
 
         if (segment == null) {
             segment = segments.poll(SEGMENT_POLL_TIMEOUT, TimeUnit.MILLISECONDS);
+            if (segment != null) {
+                synchronized (segments) {
+                    segments.notifyAll();
+                }
+            }
             LOGGER.trace("polled {}", segment);
         }
 
@@ -192,17 +197,41 @@ class TOUCommunicator {
         LOGGER.traceExit();
     }
 
-    private void removeByACK(TOUSystemMessage ack) {
-        segments.removeIf(s ->
+    private boolean removeByACK(TOUSystemMessage ack) {
+        boolean removed = segments.removeIf(s ->
                 Objects.equals(s.destinationAddress, ack.destinationAddress) &&
                         Objects.equals(s.sourceAddress, ack.sourceAddress) &&
                         s.destinationPort() == ack.destinationPort() &&
                         s.sourcePort() == ack.sourcePort() &&
                         s.sequenceNumber() == ack.ackNumber());
+
+        if (removed) {
+            synchronized (segments) {
+                segments.notifyAll();
+            }
+        }
+
+        return removed;
     }
 
-    void removeByReference(Object o) {
-        segments.removeIf(s -> s == o);
+    boolean removeByReference(Object o) {
+        boolean removed = segments.removeIf(s -> s == o);
+
+        if (removed) {
+            synchronized (segments) {
+                segments.notifyAll();
+            }
+        }
+
+        return removed;
+    }
+
+    void waitUntilQueueIsEmpty() throws InterruptedException {
+        synchronized (segments) {
+            while (!segments.isEmpty()) {
+                segments.wait();
+            }
+        }
     }
 
     @Override
