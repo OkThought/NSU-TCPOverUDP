@@ -93,6 +93,7 @@ class TOUFactory {
         swapSourceAndDestination(ack);
         ack.sequenceNumber((short) 0);
         ack.ackNumber(segment.sequenceNumber());
+        ack.setTimeout(0);
         return ack;
     }
 
@@ -227,10 +228,6 @@ class TOUFactory {
 
     TOUSystemMessage createSYNACKorFINACK(TOUSystemMessage synOrFin) {
         return createSYNACKorFINACK(impl.localAddress(), impl.localPort(), synOrFin);
-    }
-
-    TOUSystemMessage createACK(short sequenceNumber) {
-        return createACK(sequenceNumber, impl.localSocketAddress(), impl.remoteSocketAddress());
     }
 
     TOUSegment createTOUSegment(byte[] data, short sequenceNumber) {
