@@ -148,9 +148,9 @@ class TOUSegment {
 
     @Override
     public String toString() {
-        return "TOUSegment <" + "tcpSegment: " + tcpSegment +
-                " source: " + sourceAddress +
-                " destination: " + destinationAddress +
-                '>';
+        return String.format("TOUSegment [%s seq: %d ack: %d from %s:%d to %s:%d data offset: %d size: %d bytes]",
+            tcpSegment.typeByteToString(), sequenceNumber(), ackNumber(),
+                sourceAddress, sourcePort(), destinationAddress, destinationPort(),
+                tcpSegment.dataOffset(), tcpSegment.size());
     }
 }
