@@ -111,7 +111,7 @@ class TOUCommunicator {
     void send(TOUSegment segment) throws IOException, InterruptedException {
         LOGGER.traceEntry("{}", () -> segment);
 
-        LOGGER.debug("send\t{}", segment);
+        LOGGER.debug("send {}", segment);
         DatagramPacket packet = TOUFactory.packIntoUDP(segment);
         send(packet);
         if (segment.needsResending()) {
@@ -247,7 +247,7 @@ class TOUCommunicator {
                     }
                     TOUSegment segment = TOUFactory.unpackIntoTOU(udpPacket,
                             udpSocket.getLocalAddress(), udpPacket.getAddress());
-                    logger.debug("recv\t{}", segment);
+                    logger.debug("recv {}", segment);
                     processSegment(segment);
                 }
             } catch (IOException e) {
