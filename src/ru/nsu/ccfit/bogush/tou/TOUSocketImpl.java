@@ -38,6 +38,7 @@ class TOUSocketImpl extends SocketImpl {
     private boolean closePending = false;
     private boolean closed = false;
     private boolean connected = false;
+    private boolean isAcceptedImpl = false;
     short initialSequenceNumber = 0;
 
     TOUSocketImpl() {
@@ -228,6 +229,7 @@ class TOUSocketImpl extends SocketImpl {
         impl.dataSegmentMap = new HashMap<>();
         impl.pendingAcks = new ArrayBlockingQueue<>(PENDING_ACKS_QUEUE_CAPACITY);
         impl.initialSequenceNumber = synack.ackNumber();
+        impl.isAcceptedImpl = true;
 
         implMap.put(impl.remoteSocketAddress(), impl);
 
@@ -273,12 +275,21 @@ class TOUSocketImpl extends SocketImpl {
             activeClose();
         }
 
-        closed = true;
-
         if (outputStream != null) {
             LOGGER.debug("wait for communicator to flush output buffer");
             outputStream.flush();
         }
+
+        if (!isAcceptedImpl && communicator != null) {
+            LOGGER.debug("wait until communicator sends all segments");
+            try {
+                communicator.waitUntilQueueIsEmpty();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        closed = true;
 
         synchronized (systemMessageMonitor) {
             systemMessageMonitor.notifyAll();
@@ -287,6 +298,8 @@ class TOUSocketImpl extends SocketImpl {
         synchronized (dataSegmentMonitor) {
             dataSegmentMonitor.notifyAll();
         }
+
+        if (isAcceptedImpl) return;
 
         if (udpSocket != null) {
             LOGGER.debug("close UDP socket: {}", ()->TOULog4JUtils.toString(udpSocket));
@@ -393,9 +406,11 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     void processFIN(TOUSystemMessage fin) {
+        LOGGER.traceEntry("{}", fin);
         if (isConnected()) {
             passiveClose(fin);
         }
+        LOGGER.traceExit();
     }
 
     private TOUSystemMessage sendSYNorFIN(TCPSegmentType type)
@@ -498,19 +513,23 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     void processSegment(TOUSegment segment) {
+        LOGGER.traceEntry("{}", segment);
         try {
             pendingAcks.put(TOUFactory.createACK(segment));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         putDataSegmentIntoMap(segment.tcpSegment.data(), segment.sequenceNumber());
+        LOGGER.traceExit();
     }
 
     private void putDataSegmentIntoMap(byte[] dataSegment, short sequenceNumber) {
+        LOGGER.traceEntry("seq: {} data: \"{}\" - {} bytes", ()->sequenceNumber, ()->new String(dataSegment), ()->dataSegment.length);
         synchronized (dataSegmentMonitor) {
             dataSegmentMap.put(sequenceNumber, dataSegment);
             dataSegmentMonitor.notifyAll();
         }
+        LOGGER.traceExit();
     }
 
     void setSystemMessage(TOUSystemMessage systemMessage) {
@@ -527,6 +546,8 @@ class TOUSocketImpl extends SocketImpl {
     private TOUSystemMessage receiveSystemMessage(Predicate<TOUSystemMessage> isExpected)
             throws InterruptedException {
         LOGGER.traceEntry();
+
+        if (closed) return null;
 
         TOUSystemMessage result;
         synchronized (systemMessageMonitor) {
