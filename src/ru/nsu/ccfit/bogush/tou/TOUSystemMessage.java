@@ -106,11 +106,9 @@ public class TOUSystemMessage extends TOUSegment {
 
     @Override
     public String toString() {
-        return "TOUSystemMessage <" + type +
-                " sequence: " + sequenceNumber() +
-                " ack: " + ackNumber() +
-                " source: " + sourceAddress + ":" + sourcePort() +
-                " destination: " + destinationAddress + ":" + destinationPort() +
-                '>';
+        return String.format("%16s[%s seq: %5d ack: %5d from %s:%5d to %s:%5d data offset: %3d size: %3d bytes]",
+                type, tcpSegment.typeByteToString(), sequenceNumber(), ackNumber(),
+                sourceAddress, sourcePort(), destinationAddress, destinationPort(),
+                tcpSegment.dataOffset(), tcpSegment.size());
     }
 }
