@@ -36,6 +36,7 @@ class TOUSocketImpl extends SocketImpl {
     private TOUCommunicator communicator;
     private InetAddress localAddress;
     private boolean closePending = false;
+    private boolean closed = false;
     private boolean connected = false;
     short initialSequenceNumber = 0;
 
@@ -83,7 +84,7 @@ class TOUSocketImpl extends SocketImpl {
     }
 
     boolean isClosedOrPending() {
-        return closePending;
+        return closed || closePending;
     }
 
     byte[] nextDataSegment(short sequenceNumber)
@@ -149,13 +150,15 @@ class TOUSocketImpl extends SocketImpl {
         TOUSystemMessage syn = sendSYNorFIN(SYN);
         TOUSystemMessage synack = receiveSYNACKorFINACK(syn);
         if (synack == null) return;
+
         communicator.removeByReference(syn);
         pendingAcks = new ArrayBlockingQueue<>(PENDING_ACKS_QUEUE_CAPACITY);
-        TOUSystemMessage ack = sendACK(synack);
-
         dataSegmentMap = new HashMap<>();
+        initialSequenceNumber = synack.ackNumber();
 
+        sendACK(synack);
         connected = true;
+
         LOGGER.info("================ Successfully connected to {}:{} ================", address, port);
 
         LOGGER.traceExit();
@@ -244,6 +247,10 @@ class TOUSocketImpl extends SocketImpl {
             throws IOException {
         LOGGER.traceEntry();
 
+        if (closed) {
+            throw new SocketException("Socket closed");
+        }
+
         if (closePending) {
             LOGGER.warn("Already closing");
             LOGGER.traceExit();
@@ -253,11 +260,6 @@ class TOUSocketImpl extends SocketImpl {
         }
 
         LOGGER.debug("close connection");
-
-        if (outputStream != null) {
-            LOGGER.debug("wait for communicator to flush output buffer");
-            outputStream.flush();
-        }
 
 //        LOGGER.debug("wait until maps and queues are empty");
 //        try {
@@ -269,6 +271,13 @@ class TOUSocketImpl extends SocketImpl {
         if (isConnected()) {
             LOGGER.debug("process 3-way tear down handshake");
             activeClose();
+        }
+
+        closed = true;
+
+        if (outputStream != null) {
+            LOGGER.debug("wait for communicator to flush output buffer");
+            outputStream.flush();
         }
 
         synchronized (systemMessageMonitor) {
@@ -300,7 +309,7 @@ class TOUSocketImpl extends SocketImpl {
             if (fin == null) return;
             TOUSystemMessage finack = receiveSYNACKorFINACK(fin);
             if (finack == null) return;
-            sendACK(finack);
+            TOUSystemMessage ack = sendACK(finack);
         } catch (IOException e) {
             LOGGER.catching(e);
             e.printStackTrace();
@@ -454,9 +463,12 @@ class TOUSocketImpl extends SocketImpl {
         LOGGER.traceEntry();
 
         TOUSystemMessage ack = TOUFactory.createACK(synackOrFinack);
-        initialSequenceNumber = ack.sequenceNumber();
         try {
-            pendingAcks.put(ack);
+            if (closePending) {
+                communicator.send(ack);
+            } else {
+                pendingAcks.put(ack);
+            }
             return LOGGER.traceExit(ack);
         } catch (InterruptedException e) {
             LOGGER.catching(e);
@@ -520,6 +532,10 @@ class TOUSocketImpl extends SocketImpl {
         synchronized (systemMessageMonitor) {
             while (!isExpected.test(lastSystemMessage)) {
                 systemMessageMonitor.wait();
+                if (closed) {
+                    lastSystemMessage = null;
+                    break;
+                }
             }
             result = lastSystemMessage;
             lastSystemMessage = null;
