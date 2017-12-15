@@ -66,33 +66,9 @@ public class TOUSystemMessage extends TOUSegment {
         return (short) systemMessage;
     }
 
-    @Override
-    public void type(TCPSegmentType type) {
-        this.type = type;
-        super.type(type);
-    }
-
-    @Override
-    public TCPSegmentType type() {
-        return type;
-    }
-
-    public void destinationAddress(InetAddress destinationAddress) {
-        this.destinationAddress = destinationAddress;
-    }
-
-    public InetAddress destinationAddress() {
-        return destinationAddress;
-    }
-
-
-    public int systemMessage() {
-        return tcpSegment.sequenceAndAckNumbers();
-    }
-
-    public boolean isEqualTo(TOUSystemMessage that) {
+    boolean isEqualTo(TOUSystemMessage that) {
         if (this == that) return true;
-
+        if (that == null) return false;
         if (type != that.type) return false;
         if (sourcePort() != 0 && that.sourcePort() != 0 && sourcePort() != that.sourcePort()) return false;
         if (destinationPort() != 0 && that.destinationPort() != 0 &&
@@ -103,6 +79,17 @@ public class TOUSystemMessage extends TOUSegment {
         if (!ackEqual) return false;
         if (sourceAddress != null && that.sourceAddress != null && !sourceAddress.equals(that.sourceAddress)) return false;
         return destinationAddress == null || that.destinationAddress == null || destinationAddress.equals(that.destinationAddress);
+    }
+
+    @Override
+    public void type(TCPSegmentType type) {
+        this.type = type;
+        super.type(type);
+    }
+
+    @Override
+    public TCPSegmentType type() {
+        return type;
     }
 
     @Override
