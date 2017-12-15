@@ -21,6 +21,7 @@ class TOUSocketInputStream extends InputStream {
         LOGGER.traceEntry("impl: {}", ()->impl);
 
         this.impl = impl;
+        this.sequenceNumber = impl.initialSequenceNumber;
 
         LOGGER.traceExit();
     }

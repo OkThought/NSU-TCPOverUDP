@@ -206,21 +206,22 @@ class TOUSocketImpl extends SocketImpl {
         TOUSystemMessage synack = sendSYNACKorFINACK(syn);
         if (synack == null) return;
 
-        TOUSystemMessage ack = receiveACK(syn, synack);
-        if (ack == null) return;
-
         communicator.removeByReference(synack);
 
         impl.localAddress = localAddress;
         impl.localport = localport;
-        impl.address = ack.sourceAddress();
-        impl.port = ack.sourcePort();
+        impl.address = syn.sourceAddress();
+        impl.port = syn.sourcePort();
         impl.communicator = communicator;
         impl.connected = true;
         impl.dataSegmentMap = new HashMap<>();
         impl.pendingAcks = new ArrayBlockingQueue<>(PENDING_ACKS_QUEUE_CAPACITY);
+        impl.initialSequenceNumber = synack.ackNumber();
 
         implMap.put(impl.remoteSocketAddress(), impl);
+
+        TOUSystemMessage ack = receiveACK(syn, synack);
+        if (ack == null) return;
 
         LOGGER.trace("Accepted impl: {}", impl);
 
