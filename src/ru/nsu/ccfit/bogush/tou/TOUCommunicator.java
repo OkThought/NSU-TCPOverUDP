@@ -109,9 +109,9 @@ class TOUCommunicator {
     }
 
     void send(TOUSegment segment) throws IOException, InterruptedException {
-        LOGGER.traceEntry("segment: {}", () -> segment);
+        LOGGER.traceEntry("{}", () -> segment);
 
-        LOGGER.debug("send segment: {}", segment);
+        LOGGER.debug("send\t{}", segment);
         DatagramPacket packet = TOUFactory.packIntoUDP(segment);
         send(packet);
         if (segment.needsResending()) {
@@ -122,19 +122,6 @@ class TOUCommunicator {
         }
 
         LOGGER.traceExit();
-    }
-
-    private void removeByACK(TOUSystemMessage ack) {
-        segments.removeIf(s ->
-                Objects.equals(s.destinationAddress, ack.destinationAddress) &&
-                Objects.equals(s.sourceAddress, ack.sourceAddress) &&
-                s.destinationPort() == ack.destinationPort() &&
-                s.sourcePort() == ack.sourcePort() &&
-                s.sequenceNumber() == ack.ackNumber());
-    }
-
-    void removeByReference(Object o) {
-        segments.removeIf(s -> s == o);
     }
 
     private void send(DatagramPacket packet) throws IOException {
@@ -201,6 +188,19 @@ class TOUCommunicator {
         LOGGER.traceExit();
     }
 
+    private void removeByACK(TOUSystemMessage ack) {
+        segments.removeIf(s ->
+                Objects.equals(s.destinationAddress, ack.destinationAddress) &&
+                        Objects.equals(s.sourceAddress, ack.sourceAddress) &&
+                        s.destinationPort() == ack.destinationPort() &&
+                        s.sourcePort() == ack.sourcePort() &&
+                        s.sequenceNumber() == ack.ackNumber());
+    }
+
+    void removeByReference(Object o) {
+        segments.removeIf(s -> s == o);
+    }
+
     @Override
     public String toString() {
         return "TOUCommunicator <" + TOULog4JUtils.toString(udpSocket) + '>';
@@ -247,7 +247,7 @@ class TOUCommunicator {
                     }
                     TOUSegment segment = TOUFactory.unpackIntoTOU(udpPacket,
                             udpSocket.getLocalAddress(), udpPacket.getAddress());
-                    logger.debug("received {}", segment);
+                    logger.debug("recv\t{}", segment);
                     processSegment(segment);
                 }
             } catch (IOException e) {
