@@ -217,6 +217,8 @@ class TOUSocketImpl extends SocketImpl {
         impl.port = ack.sourcePort();
         impl.communicator = communicator;
         impl.connected = true;
+        impl.dataSegmentMap = new HashMap<>();
+        impl.pendingAcks = new ArrayBlockingQueue<>(PENDING_ACKS_QUEUE_CAPACITY);
 
         implMap.put(impl.remoteSocketAddress(), impl);
 
